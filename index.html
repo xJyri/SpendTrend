@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="fi">
 <head>
   <meta charset="UTF-8" />
@@ -154,6 +154,16 @@
     .btn-small:hover { background:var(--border); }
 
     .chart-wrap { position:relative; height:220px; }
+    .month-filter-list { display:flex; flex-direction:column; gap:6px; margin-top:12px; }
+    .month-filter-item {
+      display:flex; align-items:center; gap:9px; padding:8px 10px;
+      border-radius:8px; cursor:pointer; transition:background 0.12s;
+      background:var(--surface2); border:1px solid var(--border);
+    }
+    .month-filter-item:hover { background:#252a33; }
+    .month-filter-item.excluded { opacity:0.35; }
+    .month-filter-label { font-size:0.75rem; flex:1; }
+    .month-filter-amt { font-size:0.68rem; color:var(--muted); font-family:'Syne',sans-serif; font-weight:700; }
 
     .tx-list { display:flex; flex-direction:column; gap:8px; max-height:340px; overflow-y:auto; }
     .tx-list::-webkit-scrollbar { width:4px; }
@@ -321,6 +331,7 @@
       <div style="margin-top:24px">
         <div class="card-title">Menot kategorioittain</div>
         <div class="chart-wrap"><canvas id="chart-cat"></canvas></div>
+        <div id="month-cat-filter-list" class="month-filter-list"></div>
       </div>
     </div>
 
@@ -393,6 +404,7 @@
   let selectedDate = new Date(TODAY);
 
   let excludedCats = new Set();
+  let monthExcludedCats = new Set();
 
   const MONTHS_FI    = ['Tammikuu','Helmikuu','Maaliskuu','Huhtikuu','Toukokuu','Kesäkuu','Heinäkuu','Elokuu','Syyskuu','Lokakuu','Marraskuu','Joulukuu'];
   const MONTHS_SHORT = ['Tam','Hel','Maa','Huh','Tou','Kes','Hei','Elo','Syy','Lok','Mar','Jou'];
@@ -554,6 +566,11 @@
     renderMonth();
   }
 
+  function toggleMonthCat(cat) {
+    monthExcludedCats.has(cat) ? monthExcludedCats.delete(cat) : monthExcludedCats.add(cat);
+    renderMonth();
+  }
+
   function renderMonth() {
     updateMonthLabel();
     const txs    = getTxs(currentYear,currentMonth);
@@ -589,8 +606,12 @@
       document.getElementById('warning-banner').style.display='none';
     }
 
+    const monthAllCatTotals = {};
+    txs.forEach(t => { monthAllCatTotals[t.category] = (monthAllCatTotals[t.category] || 0) + t.amount; });
+    const filteredTxs = txs.filter(t => !monthExcludedCats.has(t.category));
+
     const catMap={};
-    txs.forEach(t=>{catMap[t.category]=(catMap[t.category]||0)+t.amount;});
+    filteredTxs.forEach(t=>{catMap[t.category]=(catMap[t.category]||0)+t.amount;});
     const labels=Object.keys(catMap), data=Object.values(catMap);
     const ctx=document.getElementById('chart-cat').getContext('2d');
     if(monthChart) monthChart.destroy();
@@ -610,6 +631,17 @@
         }
       });
     }
+
+    const monthSortedAll = Object.entries(monthAllCatTotals).sort((a,b)=>b[1]-a[1]);
+    document.getElementById('month-cat-filter-list').innerHTML = monthSortedAll.length===0
+      ? '<div class="empty-state" style="padding:8px 0">Ei kategorioita tässä kuussa</div>'
+      : monthSortedAll.map(([cat,total])=>`
+        <div class="month-filter-item ${monthExcludedCats.has(cat)?'excluded':''}" onclick="toggleMonthCat('${cat}')">
+          <div class="cat-dot-sm" style="background:${catColor(cat)}"></div>
+          <span class="month-filter-label">${cat}</span>
+          <span class="month-filter-amt">${fmt(total)}</span>
+          <span class="cat-check">${monthExcludedCats.has(cat)?'○':'●'}</span>
+        </div>`).join('');
 
     const list=document.getElementById('tx-list');
     const sorted=[...txs].sort((a,b)=>b.date.localeCompare(a.date));
