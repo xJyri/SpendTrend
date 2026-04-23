@@ -60,6 +60,11 @@
     }
     .nav-btn:hover { background: var(--border); }
     #month-label { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.95rem; min-width: 130px; text-align: center; cursor:pointer; }
+    .month-label-pick {
+      min-width:145px; padding:6px 10px; border-radius:8px;
+      background:var(--surface2); border:1px solid var(--border);
+      font-size:0.78rem; color:var(--text); text-align:center; user-select:none;
+    }
 
     .view { display: none; }
     .view.active { display: block; }
@@ -265,6 +270,7 @@
 
     .year-nav-wrap { display:flex; align-items:center; gap:8px; }
     #year-label { font-family:'Syne',sans-serif; font-weight:700; font-size:1rem; min-width:44px; text-align:center; cursor:pointer; }
+    .month-mini-budget { margin-top:5px; font-size:0.64rem; color:var(--muted); }
 
     @media(max-width:980px) {
       header { flex-wrap:wrap; gap:10px; padding:16px 18px; }
@@ -298,12 +304,12 @@
     <div class="header-nav-slot">
       <div class="month-nav" id="header-month-nav">
       <button class="nav-btn" onclick="prevMonth()">&#8592;</button>
-      <span id="month-label" onclick="openMonthPicker()"></span>
+      <div id="month-label" class="month-label-pick" onclick="openMonthPicker()"></div>
       <button class="nav-btn" onclick="nextMonth()">&#8594;</button>
       </div>
       <div class="year-nav-wrap nav-hidden" id="header-year-nav">
         <button class="nav-btn" onclick="yearNav(-1)">&#8592;</button>
-        <span id="year-label" onclick="openMonthPicker()"></span>
+        <div id="year-label" class="month-label-pick" onclick="openMonthPicker()"></div>
         <button class="nav-btn" onclick="yearNav(1)">&#8594;</button>
       </div>
       <input class="hidden-month-picker" type="month" id="header-month-picker" onchange="jumpToMonthYear()" />
@@ -475,6 +481,7 @@
       addExpense: 'Lisää meno', amount: 'Summa (€)', date: 'Päivämäärä', category: 'Kategoria', description: 'Kuvaus',
       descPlaceholder: 'Valinnainen...',
       budgetPlaceholder: 'esim. 600',
+      monthBudgetShort: 'Budj.',
       budgetLimit: 'Budjettiraja', monthBudget: 'Kuukausibudjetti (€)', set: 'Aseta',
       monthByCategory: 'Menot kategorioittain', entries: 'Kirjaukset',
       yearOverview: 'Vuosikatsaus', yearBudget: 'Vuosibudjetti ja toteuma', yearBudgetTotal: 'Budjetoitu yhteensä',
@@ -508,6 +515,7 @@
       addExpense: 'Add expense', amount: 'Amount (€)', date: 'Date', category: 'Category', description: 'Description',
       descPlaceholder: 'Optional...',
       budgetPlaceholder: 'e.g. 600',
+      monthBudgetShort: 'Budget',
       budgetLimit: 'Budget limit', monthBudget: 'Monthly budget (€)', set: 'Set',
       monthByCategory: 'Expenses by category', entries: 'Entries',
       yearOverview: 'Year overview', yearBudget: 'Year budget vs actual', yearBudgetTotal: 'Total budgeted',
@@ -664,7 +672,7 @@
   }
 
   function updateMonthLabel() {
-    document.getElementById('month-label').textContent = monthNamesFull()[currentMonth]+' '+currentYear;
+    document.getElementById('month-label').textContent = `📅 ${monthNamesFull()[currentMonth]} ${currentYear}`;
     const mm = String(currentMonth + 1).padStart(2,'0');
     document.getElementById('header-month-picker').value = `${currentYear}-${mm}`;
   }
@@ -937,9 +945,10 @@
   }
 
   function renderYear() {
-    document.getElementById('year-label').textContent = viewYear;
+    document.getElementById('year-label').textContent = `📅 ${viewYear}`;
     const allCats = getAllCatTotals();
     const {catTotals, monthTotals, monthCatTotals} = getYearData();
+    const monthBudgets = Array.from({length:12}, (_,m)=>getBudget(viewYear,m));
     const sortedAll = Object.entries(allCats).sort((a,b)=>b[1]-a[1]);
 
     const sorted = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
@@ -1034,9 +1043,11 @@
     const maxM=Math.max(...monthTotals,1);
     document.getElementById('month-grid').innerHTML = monthNamesShort().map((name,i)=>{
       const v=monthTotals[i], pct=(v/maxM*100).toFixed(1);
+      const b = monthBudgets[i];
       return `<div class="month-mini ${v===0?'empty':''}" onclick="goToMonth(${i})">
         <div class="month-mini-name">${name}</div>
         <div class="month-mini-val">${v===0?'–':fmt(v)}</div>
+        <div class="month-mini-budget">${t('monthBudgetShort')}: ${b>0?fmt(b):'–'}</div>
         <div class="month-mini-bar"><div class="month-mini-fill" style="width:${v===0?0:pct}%"></div></div>
       </div>`;
     }).join('');
