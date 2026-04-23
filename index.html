@@ -672,7 +672,7 @@
   }
 
   function updateMonthLabel() {
-    document.getElementById('month-label').textContent = `📅 ${monthNamesFull()[currentMonth]} ${currentYear}`;
+    document.getElementById('month-label').textContent = `${monthNamesFull()[currentMonth]} ${currentYear}`;
     const mm = String(currentMonth + 1).padStart(2,'0');
     document.getElementById('header-month-picker').value = `${currentYear}-${mm}`;
   }
@@ -691,8 +691,14 @@
 
   function openMonthPicker() {
     const picker = document.getElementById('header-month-picker');
-    if (picker.showPicker) picker.showPicker();
-    else picker.click();
+    if (picker.showPicker) {
+      try { picker.showPicker(); return; } catch {}
+    }
+    const fallback = window.prompt('YYYY-MM', picker.value || `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`);
+    if (fallback && /^\d{4}-\d{2}$/.test(fallback)) {
+      picker.value = fallback;
+      jumpToMonthYear();
+    }
   }
 
   function toggleDatePicker(e) {
@@ -786,7 +792,7 @@
 
   function setBudget() {
     const v = parseGroupedNumber(document.getElementById('inp-budget').value);
-    if (!v||v<=0){alert(t('giveBudget'));return;}
+    if (Number.isNaN(v) || v < 0){alert(t('giveBudget'));return;}
     saveBudget(v);
     renderMonth();
   }
@@ -804,9 +810,10 @@
 
     document.getElementById('stat-expenses').textContent = fmt(total);
 
-    if (budget>0) {
+    const budgetSet = localStorage.getItem(budKey(currentYear,currentMonth)) !== null;
+    if (budgetSet) {
       const rem = budget-total;
-      const pct = Math.min(total/budget*100,100);
+      const pct = budget <= 0 ? (total > 0 ? 100 : 0) : Math.min(total/budget*100,100);
       const statEl = document.getElementById('stat-budget');
       statEl.textContent = fmt(Math.max(rem,0));
       statEl.style.color = rem<=0?'var(--red)':rem<budget*0.2?'var(--yellow)':'var(--blue)';
@@ -820,7 +827,7 @@
         .replace('{pct}', Math.round(pct));
       document.getElementById('budget-bar-wrap').style.display = 'block';
       const banner = document.getElementById('warning-banner');
-      if (pct>=100) {
+      if (pct>=100 && total > budget) {
         banner.style.display='flex'; banner.className='danger-banner';
         document.getElementById('warning-text').textContent=t('budgetExceeded').replace('{amount}', fmt(total-budget));
       } else if (pct>=80) {
@@ -861,13 +868,17 @@
               labels:{
                 color:'#9ca3af',font:{family:'DM Mono',size:11},boxWidth:10,padding:12,
                 generateLabels(chart) {
-                  const base = Chart.defaults.plugins.legend.labels.generateLabels(chart);
                   const values = chart.data.datasets[0].data;
+                  const labels = chart.data.labels || [];
                   const sum = values.reduce((s,v)=>s+v,0) || 1;
-                  return base.map((l) => {
-                    const v = values[l.index] ?? 0;
-                    return { ...l, text: `${l.text} (${Math.round(v / sum * 100)}%)` };
-                  });
+                  return labels.map((label, idx) => ({
+                    text: `${label} (${Math.round(((values[idx] ?? 0) / sum) * 100)}%)`,
+                    fillStyle: chart.data.datasets[0].backgroundColor[idx],
+                    strokeStyle: chart.data.datasets[0].backgroundColor[idx],
+                    lineWidth: 0,
+                    hidden: !chart.getDataVisibility(idx),
+                    index: idx
+                  }));
                 }
               }
             },
@@ -945,7 +956,7 @@
   }
 
   function renderYear() {
-    document.getElementById('year-label').textContent = `📅 ${viewYear}`;
+    document.getElementById('year-label').textContent = `${viewYear}`;
     const allCats = getAllCatTotals();
     const {catTotals, monthTotals, monthCatTotals} = getYearData();
     const monthBudgets = Array.from({length:12}, (_,m)=>getBudget(viewYear,m));
