@@ -46,6 +46,10 @@
     .lang-btn.active { color:var(--accent); border-color:var(--accent); }
 
     .month-nav { display: flex; align-items: center; gap: 10px; }
+    .month-jump {
+      background:var(--surface2); border:1px solid var(--border); color:var(--muted);
+      border-radius:7px; padding:3px 6px; font-size:0.72rem;
+    }
     #header-right { display:flex; align-items:center; gap:10px; }
     .header-nav-slot { position:relative; width:210px; height:30px; }
     #header-month-nav, #header-year-nav {
@@ -295,9 +299,10 @@
   <div id="header-right">
     <div class="header-nav-slot">
       <div class="month-nav" id="header-month-nav">
-        <button class="nav-btn" onclick="prevMonth()">&#8592;</button>
-        <span id="month-label"></span>
-        <button class="nav-btn" onclick="nextMonth()">&#8594;</button>
+      <button class="nav-btn" onclick="prevMonth()">&#8592;</button>
+      <span id="month-label"></span>
+      <button class="nav-btn" onclick="nextMonth()">&#8594;</button>
+      <input class="month-jump" type="month" id="header-month-picker" onchange="jumpToMonthYear()" />
       </div>
       <div class="year-nav-wrap nav-hidden" id="header-year-nav">
         <button class="nav-btn" onclick="yearNav(-1)">&#8592;</button>
@@ -342,7 +347,7 @@
         <div>
           <label id="lbl-date">Päivämäärä</label>
           <div class="date-input-wrap">
-            <div class="date-display" id="date-display" onclick="toggleDatePicker(event)">
+            <div class="date-display" id="date-display" tabindex="0" onclick="toggleDatePicker(event)">
               <span id="date-display-text">Valitse päivä</span>
               <span class="arrow">▼</span>
             </div>
@@ -353,10 +358,10 @@
                 <button class="dp-nav" onclick="dpNav(event,1)">›</button>
               </div>
               <div class="dp-weekdays">
-                <div class="dp-weekday">Ma</div><div class="dp-weekday">Ti</div>
-                <div class="dp-weekday">Ke</div><div class="dp-weekday">To</div>
-                <div class="dp-weekday">Pe</div><div class="dp-weekday">La</div>
-                <div class="dp-weekday">Su</div>
+                <div class="dp-weekday" id="wd-0">Ma</div><div class="dp-weekday" id="wd-1">Ti</div>
+                <div class="dp-weekday" id="wd-2">Ke</div><div class="dp-weekday" id="wd-3">To</div>
+                <div class="dp-weekday" id="wd-4">Pe</div><div class="dp-weekday" id="wd-5">La</div>
+                <div class="dp-weekday" id="wd-6">Su</div>
               </div>
               <div class="dp-days" id="dp-days"></div>
             </div>
@@ -471,6 +476,7 @@
       monthExpenses: 'Menot tässä kuussa', budgetLeft: 'Budjetti jäljellä',
       addExpense: 'Lisää meno', amount: 'Summa (€)', date: 'Päivämäärä', category: 'Kategoria', description: 'Kuvaus',
       descPlaceholder: 'Valinnainen...',
+      budgetPlaceholder: 'esim. 600',
       budgetLimit: 'Budjettiraja', monthBudget: 'Kuukausibudjetti (€)', set: 'Aseta',
       monthByCategory: 'Menot kategorioittain', entries: 'Kirjaukset',
       yearOverview: 'Vuosikatsaus', yearBudget: 'Vuosibudjetti ja toteuma', yearBudgetTotal: 'Budjetoitu yhteensä',
@@ -487,6 +493,11 @@
       noCategoriesMonth: 'Ei kategorioita tässä kuussa',
       noEntries: 'Ei menokirjauksia.',
       yearTotal: 'Vuosiyhteensä',
+      budgetUsedLabel: '{spent} / {budget} käytetty ({pct}%)',
+      budgetExceeded: 'Budjetti ylitetty! Olet käyttänyt {amount} liikaa.',
+      budgetWarning: 'Huom! Olet käyttänyt {pct}% budjetistasi — jäljellä {remaining}.',
+      delete: 'Poista',
+      weekdays: ['Ma','Ti','Ke','To','Pe','La','Su'],
       budgetHint: 'Aseta kuukausibudjetteja, niin näet vuositasolla oletko yli vai ali budjetin.',
       underYear: 'Hyvä! Olet vuosibudjetissa {amount} edellä.',
       overYear: 'Huom! Olet vuosibudjetista {amount} yli.',
@@ -498,6 +509,7 @@
       monthExpenses: 'Expenses this month', budgetLeft: 'Budget left',
       addExpense: 'Add expense', amount: 'Amount (€)', date: 'Date', category: 'Category', description: 'Description',
       descPlaceholder: 'Optional...',
+      budgetPlaceholder: 'e.g. 600',
       budgetLimit: 'Budget limit', monthBudget: 'Monthly budget (€)', set: 'Set',
       monthByCategory: 'Expenses by category', entries: 'Entries',
       yearOverview: 'Year overview', yearBudget: 'Year budget vs actual', yearBudgetTotal: 'Total budgeted',
@@ -514,6 +526,11 @@
       noCategoriesMonth: 'No categories in this month',
       noEntries: 'No expense entries.',
       yearTotal: 'Year total',
+      budgetUsedLabel: '{spent} / {budget} used ({pct}%)',
+      budgetExceeded: 'Budget exceeded! You are {amount} over.',
+      budgetWarning: 'Heads up! You have used {pct}% of your budget — {remaining} left.',
+      delete: 'Delete',
+      weekdays: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
       budgetHint: 'Set monthly budgets to see yearly over/under status.',
       underYear: 'Great! You are {amount} under yearly budget.',
       overYear: 'Heads up! You are {amount} over yearly budget.',
@@ -584,6 +601,11 @@
       if (el) el.innerHTML = t(key);
     });
     document.getElementById('inp-desc').placeholder = t('descPlaceholder');
+    document.getElementById('inp-budget').placeholder = t('budgetPlaceholder');
+    I18N[currentLang].weekdays.forEach((d, i) => {
+      const wd = document.getElementById(`wd-${i}`);
+      if (wd) wd.textContent = d;
+    });
     const select = document.getElementById('inp-category');
     if (select) {
       const currentValue = select.value;
@@ -643,7 +665,23 @@
     renderMonth();
   }
 
-  function updateMonthLabel() { document.getElementById('month-label').textContent = monthNamesFull()[currentMonth]+' '+currentYear; }
+  function updateMonthLabel() {
+    document.getElementById('month-label').textContent = monthNamesFull()[currentMonth]+' '+currentYear;
+    const mm = String(currentMonth + 1).padStart(2,'0');
+    document.getElementById('header-month-picker').value = `${currentYear}-${mm}`;
+  }
+
+  function jumpToMonthYear() {
+    const value = document.getElementById('header-month-picker').value;
+    if (!value) return;
+    const [y,m] = value.split('-').map(Number);
+    currentYear = y;
+    currentMonth = m - 1;
+    if (currentTab === 'year') viewYear = y;
+    syncSelectedDateToCurrentMonth();
+    updateMonthLabel();
+    if (currentTab === 'month') renderMonth(); else renderYear();
+  }
 
   function toggleDatePicker(e) {
     e.stopPropagation();
@@ -764,15 +802,20 @@
       const fill = document.getElementById('budget-bar-fill');
       fill.style.width = pct+'%';
       fill.className = 'budget-bar-fill'+(pct>=100?' danger':pct>=80?' warn':'');
-      document.getElementById('budget-bar-label').textContent = `${fmt(total)} / ${fmt(budget)} käytetty`;
+      document.getElementById('budget-bar-label').textContent = t('budgetUsedLabel')
+        .replace('{spent}', fmt(total))
+        .replace('{budget}', fmt(budget))
+        .replace('{pct}', Math.round(pct));
       document.getElementById('budget-bar-wrap').style.display = 'block';
       const banner = document.getElementById('warning-banner');
       if (pct>=100) {
         banner.style.display='flex'; banner.className='danger-banner';
-        document.getElementById('warning-text').textContent=`Budjetti ylitetty! Olet käyttänyt ${fmt(total-budget)} liikaa.`;
+        document.getElementById('warning-text').textContent=t('budgetExceeded').replace('{amount}', fmt(total-budget));
       } else if (pct>=80) {
         banner.style.display='flex'; banner.className='';
-        document.getElementById('warning-text').textContent=`Huom! Olet käyttänyt ${Math.round(pct)}% budjetistasi — jäljellä ${fmt(rem)}.`;
+        document.getElementById('warning-text').textContent=t('budgetWarning')
+          .replace('{pct}', Math.round(pct))
+          .replace('{remaining}', fmt(rem));
       } else { banner.style.display='none'; }
     } else {
       document.getElementById('stat-budget').textContent=t('noBudget');
@@ -801,8 +844,24 @@
         data:{labels:displayLabels,datasets:[{data,backgroundColor:labels.map(catColor),borderWidth:0,hoverOffset:6}]},
         options:{responsive:true,maintainAspectRatio:false,cutout:'65%',
           plugins:{
-            legend:{position:'right',labels:{color:'#9ca3af',font:{family:'DM Mono',size:11},boxWidth:10,padding:12}},
-            tooltip:{callbacks:{label:c=>` ${c.label}: ${c.raw.toLocaleString('fi-FI',{minimumFractionDigits:2})} €`}}
+            legend:{
+              position:'right',
+              labels:{
+                color:'#9ca3af',font:{family:'DM Mono',size:11},boxWidth:10,padding:12,
+                generateLabels(chart) {
+                  const base = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                  const values = chart.data.datasets[0].data;
+                  const sum = values.reduce((s,v)=>s+v,0) || 1;
+                  return base.map((l, idx) => ({ ...l, text: `${l.text} (${Math.round(values[idx] / sum * 100)}%)` }));
+                }
+              }
+            },
+            tooltip:{callbacks:{label:c=>{
+              const vals = c.dataset.data;
+              const sum = vals.reduce((s,v)=>s+v,0) || 1;
+              const pct = Math.round((c.raw / sum) * 100);
+              return ` ${c.label}: ${c.raw.toLocaleString('fi-FI',{minimumFractionDigits:2})} € (${pct}%)`;
+            }}}
           }
         }
       });
@@ -823,15 +882,15 @@
     const sorted=[...txs].sort((a,b)=>b.date.localeCompare(a.date));
     list.innerHTML=sorted.length===0
       ?`<div class="empty-state">${t('noExpensesMonth')}</div>`
-      :sorted.map(t=>`
+      :sorted.map(tx=>`
         <div class="tx-item">
-          <div class="tx-dot" style="background:${catColor(t.category)}"></div>
+          <div class="tx-dot" style="background:${catColor(tx.category)}"></div>
           <div class="tx-info">
-            <div class="tx-desc">${catLabel(t.category)}${t.desc?' — '+esc(t.desc):''}</div>
-            <div class="tx-meta">${fmtDate(t.date)}</div>
+            <div class="tx-desc">${catLabel(tx.category)}${tx.desc?' — '+esc(tx.desc):''}</div>
+            <div class="tx-meta">${fmtDate(tx.date)}</div>
           </div>
-          <div class="tx-amount">−${fmt(t.amount)}</div>
-          <button class="tx-delete" onclick="deleteTx(${t.id})" title="Poista">×</button>
+          <div class="tx-amount">−${fmt(tx.amount)}</div>
+          <button class="tx-delete" onclick="deleteTx(${tx.id})" title="${t('delete')}">×</button>
         </div>`).join('');
   }
 
@@ -981,6 +1040,14 @@
   });
   document.getElementById('inp-budget').addEventListener('input', (e) => {
     e.target.value = formatGroupedNumberInput(e.target.value);
+  });
+  ['inp-amount','inp-desc','inp-category','date-display'].forEach((id) => {
+    document.getElementById(id).addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); addTransaction(); }
+    });
+  });
+  document.getElementById('inp-budget').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); setBudget(); }
   });
   syncSelectedDateToCurrentMonth();
   applyI18n();
