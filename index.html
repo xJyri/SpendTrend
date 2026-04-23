@@ -46,7 +46,9 @@
     .lang-btn.active { color:var(--accent); border-color:var(--accent); }
 
     .month-nav { display: flex; align-items: center; gap: 10px; }
-    .hidden-month-picker { position:absolute; opacity:0; width:1px; height:1px; pointer-events:none; }
+    .header-month-popup { width:220px; right:0; left:auto; top:calc(100% + 8px); }
+    .jump-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+    .jump-select { width:100%; background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:8px; font-size:0.78rem; }
     #header-right { display:flex; align-items:center; gap:10px; }
     .header-nav-slot { position:relative; width:210px; height:30px; }
     #header-month-nav, #header-year-nav {
@@ -271,6 +273,7 @@
     .year-nav-wrap { display:flex; align-items:center; gap:8px; }
     #year-label { font-family:'Syne',sans-serif; font-weight:700; font-size:1rem; min-width:44px; text-align:center; cursor:pointer; }
     .month-mini-budget { margin-top:5px; font-size:0.64rem; color:var(--muted); }
+    .month-reset { margin-top:6px; font-size:0.62rem; color:var(--muted); cursor:pointer; text-decoration:underline; }
 
     @media(max-width:980px) {
       header { flex-wrap:wrap; gap:10px; padding:16px 18px; }
@@ -295,7 +298,7 @@
 <body>
 
 <header>
-  <div class="logo"><span class="logo-main"><span class="logo-spend">Spend</span><span class="logo-trend">Trend</span></span><span class="version-badge">v0.4.3</span>
+  <div class="logo"><span class="logo-main"><span class="logo-spend">Spend</span><span class="logo-trend">Trend</span></span><span class="version-badge">v0.4.4</span>
     <div class="lang-toggle">
       <button id="lang-switch" class="lang-btn active" onclick="toggleLanguage()">FI</button>
     </div>
@@ -304,15 +307,21 @@
     <div class="header-nav-slot">
       <div class="month-nav" id="header-month-nav">
       <button class="nav-btn" onclick="prevMonth()">&#8592;</button>
-      <div id="month-label" class="month-label-pick" onclick="openMonthPicker()"></div>
+      <div id="month-label" class="month-label-pick" onclick="openMonthPicker(event)"></div>
       <button class="nav-btn" onclick="nextMonth()">&#8594;</button>
       </div>
       <div class="year-nav-wrap nav-hidden" id="header-year-nav">
         <button class="nav-btn" onclick="yearNav(-1)">&#8592;</button>
-        <div id="year-label" class="month-label-pick" onclick="openMonthPicker()"></div>
+        <div id="year-label" class="month-label-pick" onclick="openMonthPicker(event)"></div>
         <button class="nav-btn" onclick="yearNav(1)">&#8594;</button>
       </div>
-      <input class="hidden-month-picker" type="month" id="header-month-picker" onchange="jumpToMonthYear()" />
+      <div class="date-popup header-month-popup" id="header-month-popup">
+        <div class="jump-grid">
+          <select id="jump-month-select" class="jump-select"></select>
+          <select id="jump-year-select" class="jump-select"></select>
+        </div>
+        <button class="btn-small" style="width:100%" onclick="jumpToMonthYear()">OK</button>
+      </div>
     </div>
     <div class="tab-nav">
       <button id="tab-month" class="tab-btn active" onclick="switchTab('month')">Kuukausi</button>
@@ -489,6 +498,7 @@
       yearCats: 'Menot kategorioittain — suurimmasta pienimpään (klikkaa piilottaaksesi/näyttääksesi)',
       yearCatChart: 'Menot kategorioittain (vuosi)', yearMonthly: 'Menot kuukausittain (väripinottu kategorioittain)',
       monthGrid: 'Kuukaudet — klikkaa siirtyäksesi',
+      resetMonth: 'Nollaa kuukausi',
       fillAmountDate: 'Täytä summa ja päivämäärä.',
       wrongMonthDate: 'Valittu päivämäärä ei kuulu näkyvään kuukauteen. Vaihda päivä samalle kuukaudelle.',
       giveBudget: 'Anna budjettiraja.',
@@ -523,6 +533,7 @@
       yearCats: 'Expenses by category — largest to smallest (click to hide/show)',
       yearCatChart: 'Expenses by category (year)', yearMonthly: 'Expenses by month (stacked by category)',
       monthGrid: 'Months — click to open',
+      resetMonth: 'Reset month',
       fillAmountDate: 'Please fill amount and date.',
       wrongMonthDate: 'Selected date is outside current month. Pick a date from the current month.',
       giveBudget: 'Enter a budget.',
@@ -673,32 +684,32 @@
 
   function updateMonthLabel() {
     document.getElementById('month-label').textContent = `${monthNamesFull()[currentMonth]} ${currentYear}`;
-    const mm = String(currentMonth + 1).padStart(2,'0');
-    document.getElementById('header-month-picker').value = `${currentYear}-${mm}`;
   }
 
   function jumpToMonthYear() {
-    const value = document.getElementById('header-month-picker').value;
-    if (!value) return;
-    const [y,m] = value.split('-').map(Number);
+    const y = parseInt(document.getElementById('jump-year-select').value, 10);
+    const m = parseInt(document.getElementById('jump-month-select').value, 10);
+    if (Number.isNaN(y) || Number.isNaN(m)) return;
     currentYear = y;
-    currentMonth = m - 1;
+    currentMonth = m;
     if (currentTab === 'year') viewYear = y;
     syncSelectedDateToCurrentMonth();
+    document.getElementById('header-month-popup').classList.remove('open');
     updateMonthLabel();
     if (currentTab === 'month') renderMonth(); else renderYear();
   }
 
-  function openMonthPicker() {
-    const picker = document.getElementById('header-month-picker');
-    if (picker.showPicker) {
-      try { picker.showPicker(); return; } catch {}
-    }
-    const fallback = window.prompt('YYYY-MM', picker.value || `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`);
-    if (fallback && /^\d{4}-\d{2}$/.test(fallback)) {
-      picker.value = fallback;
-      jumpToMonthYear();
-    }
+  function openMonthPicker(e) {
+    if (e) e.stopPropagation();
+    const popup = document.getElementById('header-month-popup');
+    const monthSelect = document.getElementById('jump-month-select');
+    const yearSelect = document.getElementById('jump-year-select');
+    monthSelect.innerHTML = monthNamesFull().map((m,idx)=>`<option value="${idx}">${m}</option>`).join('');
+    const baseYear = currentTab === 'year' ? viewYear : currentYear;
+    yearSelect.innerHTML = Array.from({length:21}, (_,i)=>baseYear-10+i).map(y=>`<option value="${y}">${y}</option>`).join('');
+    monthSelect.value = String(currentMonth);
+    yearSelect.value = String(baseYear);
+    popup.classList.toggle('open');
   }
 
   function toggleDatePicker(e) {
@@ -713,6 +724,7 @@
   document.addEventListener('click', () => {
     document.getElementById('date-popup').classList.remove('open');
     document.getElementById('date-display').classList.remove('open');
+    document.getElementById('header-month-popup').classList.remove('open');
   });
 
   function dpNav(e, dir) {
@@ -875,6 +887,7 @@
                     text: `${label} (${Math.round(((values[idx] ?? 0) / sum) * 100)}%)`,
                     fillStyle: chart.data.datasets[0].backgroundColor[idx],
                     strokeStyle: chart.data.datasets[0].backgroundColor[idx],
+                    fontColor: '#9ca3af',
                     lineWidth: 0,
                     hidden: !chart.getDataVisibility(idx),
                     index: idx
@@ -953,6 +966,13 @@
     currentYear=viewYear;
     syncSelectedDateToCurrentMonth();
     switchTab('month');
+  }
+
+  function resetMonthData(m, e) {
+    if (e) e.stopPropagation();
+    localStorage.removeItem(txKey(viewYear, m));
+    localStorage.removeItem(budKey(viewYear, m));
+    renderYear();
   }
 
   function renderYear() {
@@ -1059,6 +1079,7 @@
         <div class="month-mini-name">${name}</div>
         <div class="month-mini-val">${v===0?'–':fmt(v)}</div>
         <div class="month-mini-budget">${t('monthBudgetShort')}: ${b>0?fmt(b):'–'}</div>
+        <div class="month-reset" onclick="resetMonthData(${i}, event)">${t('resetMonth')}</div>
         <div class="month-mini-bar"><div class="month-mini-fill" style="width:${v===0?0:pct}%"></div></div>
       </div>`;
     }).join('');
