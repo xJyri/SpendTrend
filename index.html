@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SpendTrend</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0e0f11; --surface: #16181c; --surface2: #1e2128; --border: #2a2d35;
+      --text: #f0f0f0; --muted: #6b7280; --green: #22c55e; --red: #ef4444;
+      --yellow: #f59e0b; --blue: #3b82f6; --accent: #a3e635;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--text); font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+      min-height: 100vh; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    }
+
+    header {
+      padding: 20px 32px; display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; letter-spacing: -0.04em; display:flex; align-items:center; gap:10px; color:var(--text); }
+    .logo-main { display:inline-flex; gap:0; }
+    .logo-spend { color:var(--text); }
+    .logo-trend { color:var(--accent); }
+    .version-badge {
+      font-family:'DM Mono',monospace; font-size:0.62rem; color:var(--muted);
+      border:1px solid var(--border); border-radius:99px; padding:3px 8px;
+      letter-spacing:0.04em;
+    }
+
+    .tab-nav { display: flex; gap: 4px; }
+    .tab-btn {
+      padding: 7px 18px; border-radius: 8px; border: 1px solid transparent;
+      background: none; color: var(--muted); font-family: 'DM Mono', monospace;
+      font-size: 0.8rem; cursor: pointer; transition: all 0.15s;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { background: var(--surface2); border-color: var(--border); color: var(--accent); }
+    .lang-toggle { display:flex; gap:6px; }
+    .lang-btn {
+      background:var(--surface2); border:1px solid var(--border); color:var(--muted);
+      border-radius:8px; padding:6px 10px; font-size:0.72rem; cursor:pointer;
+      display:flex; align-items:center; gap:6px;
+    }
+    .lang-btn.active { color:var(--accent); border-color:var(--accent); }
+
+    .month-nav { display: flex; align-items: center; gap: 10px; }
+    .header-month-popup { width:220px; right:0; left:auto; top:calc(100% + 8px); }
+    .jump-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+    .jump-select { width:100%; background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:8px; font-size:0.78rem; }
+    #header-right { display:flex; align-items:center; gap:10px; }
+    .header-nav-slot { position:relative; width:210px; height:30px; }
+    #header-month-nav, #header-year-nav {
+      position:absolute; inset:0; display:flex; align-items:center; justify-content:center; gap:10px;
+    }
+    .nav-hidden { visibility:hidden; pointer-events:none; }
+    .nav-btn {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+      width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
+      display: flex; align-items: center; justify-content: center; transition: background 0.15s;
+    }
+    .nav-btn:hover { background: var(--border); }
+    #month-label { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.95rem; min-width: 130px; text-align: center; cursor:pointer; }
+    .month-label-pick {
+      min-width:145px; padding:6px 10px; border-radius:8px;
+      background:var(--surface2); border:1px solid var(--border);
+      font-size:0.78rem; color:var(--text); text-align:center; user-select:none;
+    }
+
+    .view { display: none; }
+    .view.active { display: block; }
+    .edit-modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.65); display:none; align-items:center; justify-content:center; z-index:999; padding:16px; }
+    .edit-modal-backdrop.open { display:flex; }
+    .edit-modal { width:min(460px, 100%); background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:18px; }
+    .edit-modal-actions { display:flex; gap:8px; margin-top:10px; }
+
+    .month-main {
+      max-width: 1100px; margin: 0 auto; padding: 28px 24px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+    }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; min-width:0; }
+    .card-title {
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.72rem;
+      letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px;
+    }
+    .card-title-row { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:12px; }
+    .summary-row { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; }
+    .span-full { grid-column: 1 / -1; }
+
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px; position: relative; overflow: hidden;
+    }
+    .stat-card::before { content:''; position:absolute; top:0;left:0;right:0;height:3px; }
+    .stat-card.expenses::before { background: var(--red); }
+    .stat-card.budget::before  { background: var(--blue); }
+    .stat-label { font-size:0.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px; }
+    .stat-value { font-family:'Syne',sans-serif; font-weight:800; font-size:1.6rem; letter-spacing:-0.03em; }
+    .stat-card.expenses .stat-value { color:var(--red); }
+    .stat-card.budget .stat-value  { color:var(--blue); }
+
+    .budget-bar-wrap { margin-top:10px; }
+    .budget-bar-track { height:6px; background:var(--surface2); border-radius:99px; overflow:hidden; }
+    .budget-bar-fill { height:100%; border-radius:99px; transition:width 0.4s ease; background:var(--green); }
+    .budget-bar-fill.warn   { background:var(--yellow); }
+    .budget-bar-fill.danger { background:var(--red); }
+    .budget-bar-label { font-size:0.65rem; color:var(--muted); margin-top:5px; }
+
+    #warning-banner {
+      grid-column:1/-1; display:none;
+      background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.4);
+      border-radius:12px; padding:14px 20px; font-size:0.82rem; color:var(--yellow);
+      align-items:center; gap:10px;
+    }
+    #warning-banner.danger-banner { background:rgba(239,68,68,0.12); border-color:rgba(239,68,68,0.4); color:var(--red); }
+
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .form-full { grid-column:1/-1; }
+    label { display:block; font-size:0.7rem; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:0.06em; }
+
+    input[type="number"], input[type="text"], select {
+      width:100%; background:var(--surface2); border:1px solid var(--border);
+      color:var(--text); font-family:'DM Mono',monospace; font-size:0.85rem;
+      padding:10px 12px; border-radius:9px; outline:none; transition:border-color 0.15s;
+    }
+    input[type="number"] { -moz-appearance:textfield; }
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance:none; }
+    input:focus, select:focus { border-color:var(--accent); }
+    select option { background:var(--surface2); }
+
+    .date-input-wrap { position:relative; }
+    .date-display {
+      width:100%; background:var(--surface2); border:1px solid var(--border);
+      color:var(--text); font-family:'DM Mono',monospace; font-size:0.85rem;
+      padding:10px 12px; border-radius:9px; cursor:pointer; transition:border-color 0.15s;
+      display:flex; align-items:center; justify-content:space-between; user-select:none;
+    }
+    .date-display:hover, .date-display.open { border-color:var(--accent); }
+    .date-display .arrow { font-size:0.7rem; color:var(--muted); transition:transform 0.15s; }
+    .date-display.open .arrow { transform:rotate(180deg); }
+
+    .date-popup {
+      display:none; position:absolute; top:calc(100% + 6px); left:0;
+      background:var(--surface); border:1px solid var(--border); border-radius:12px;
+      padding:14px; z-index:200; width:264px; box-shadow:0 8px 32px rgba(0,0,0,0.6);
+    }
+    .date-popup.open { display:block; }
+
+    .dp-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+    .dp-nav {
+      background:var(--surface2); border:1px solid var(--border); color:var(--text);
+      width:26px; height:26px; border-radius:6px; cursor:pointer; font-size:1rem;
+      display:flex; align-items:center; justify-content:center; transition:background 0.12s;
+    }
+    .dp-nav:hover { background:var(--border); }
+    .dp-month-label { font-family:'Syne',sans-serif; font-weight:700; font-size:0.85rem; }
+
+    .dp-weekdays { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-bottom:4px; }
+    .dp-weekday  { text-align:center; font-size:0.6rem; color:var(--muted); padding:2px 0; }
+    .dp-days     { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+    .dp-day {
+      text-align:center; padding:5px 0; font-size:0.75rem; border-radius:6px;
+      cursor:pointer; border:none; background:none; color:var(--text);
+      font-family:'DM Mono',monospace; transition:background 0.1s; width:100%;
+    }
+    .dp-day:hover    { background:var(--surface2); }
+    .dp-day.today    { color:var(--accent); font-weight:700; }
+    .dp-day.selected { background:var(--accent); color:#0e0f11; font-weight:700; }
+    .dp-day.other    { color:var(--muted); opacity:0.45; }
+
+    .btn-primary {
+      width:100%; padding:12px; background:var(--accent); color:#0e0f11;
+      border:none; border-radius:10px; font-family:'Syne',sans-serif; font-weight:700;
+      font-size:0.9rem; cursor:pointer; margin-top:4px; transition:opacity 0.15s, transform 0.1s;
+    }
+    .btn-primary:hover { opacity:0.88; transform:translateY(-1px); }
+    .btn-primary:active { transform:translateY(0); }
+
+    .budget-setter { display:flex; gap:10px; align-items:flex-end; }
+    .budget-setter > div { flex:1; }
+    .btn-small {
+      padding:10px 16px; background:var(--surface2); border:1px solid var(--border);
+      color:var(--text); border-radius:9px; font-family:'DM Mono',monospace;
+      font-size:0.8rem; cursor:pointer; white-space:nowrap; transition:background 0.15s;
+    }
+    .btn-small:hover { background:var(--border); }
+
+    .chart-wrap { position:relative; height:220px; }
+    .month-filter-list { display:flex; flex-direction:column; gap:6px; margin-top:12px; }
+    .month-filter-item {
+      display:flex; align-items:center; gap:9px; padding:8px 10px;
+      border-radius:8px; cursor:pointer; transition:background 0.12s;
+      background:var(--surface2); border:1px solid var(--border);
+    }
+    .month-filter-item:hover { background:#252a33; }
+    .month-filter-item.excluded { opacity:0.35; }
+    .month-filter-label { font-size:0.75rem; flex:1; }
+    .month-filter-amt { font-size:0.68rem; color:var(--muted); font-family:'Syne',sans-serif; font-weight:700; }
+
+    .tx-list { display:flex; flex-direction:column; gap:8px; max-height:340px; overflow-y:auto; }
+    .tx-list::-webkit-scrollbar { width:4px; }
+    .tx-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:99px; }
+    .tx-item {
+      display:flex; align-items:center; gap:12px;
+      background:var(--surface2); border:1px solid var(--border);
+      border-radius:10px; padding:12px 14px; animation:slideIn 0.2s ease;
+    }
+    @keyframes slideIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+    .tx-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+    .tx-info { flex:1; min-width:0; }
+    .tx-desc { font-size:0.82rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .tx-meta { font-size:0.65rem; color:var(--muted); margin-top:2px; }
+    .tx-amount { font-family:'Syne',sans-serif; font-weight:700; font-size:0.9rem; flex-shrink:0; color:var(--red); }
+    .tx-actions { display:flex; align-items:center; gap:4px; }
+    .tx-edit, .tx-delete { background:none; border:none; color:var(--muted); cursor:pointer; font-size:0.95rem; padding:3px 6px; border-radius:6px; transition:color 0.15s, background 0.15s; }
+    .tx-edit:hover { color:var(--accent); background:rgba(163,230,53,0.12); }
+    .tx-delete { color:#9ca3af; }
+    .tx-delete:hover { color:var(--red); }
+    .empty-state { text-align:center; color:var(--muted); font-size:0.8rem; padding:32px 0; }
+
+    .year-main {
+      max-width:1200px; margin:0 auto; padding:28px 24px;
+      display:grid; grid-template-columns:1fr; gap:20px; align-items:start;
+    }
+    .year-header-bar {
+      display:flex; align-items:center; justify-content:space-between; margin-bottom:0;
+    }
+    .year-content { display:flex; flex-direction:column; gap:20px; min-width:0; }
+    .year-budget-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+    .year-budget-box { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px; }
+    .year-budget-label { font-size:0.64rem; color:var(--muted); letter-spacing:0.06em; text-transform:uppercase; margin-bottom:6px; }
+    .year-budget-value { font-family:'Syne',sans-serif; font-weight:700; font-size:1rem; }
+    .year-budget-note { margin-top:10px; font-size:0.78rem; color:var(--muted); }
+
+    .sidebar { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px; position:sticky; top:20px; }
+    .sidebar-title { font-family:'Syne',sans-serif; font-weight:700; font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:14px; }
+
+    .cat-filter-item {
+      display:flex; align-items:center; gap:9px; padding:8px 10px;
+      border-radius:8px; cursor:pointer; transition:background 0.12s; margin-bottom:3px; user-select:none;
+    }
+    .cat-filter-item:hover { background:var(--surface2); }
+    .cat-filter-item.excluded { opacity:0.35; }
+    .cat-dot-sm { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+    .cat-filter-label { font-size:0.76rem; flex:1; }
+    .cat-filter-amt { font-size:0.68rem; color:var(--muted); font-family:'Syne',sans-serif; font-weight:700; }
+    .cat-check { font-size:0.65rem; color:var(--accent); margin-left:2px; }
+    .cat-filter-item.excluded .cat-check { color:var(--border); }
+
+    .sidebar-total { margin-top:14px; padding-top:14px; border-top:1px solid var(--border); }
+    .sidebar-total-label { font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:4px; }
+    .sidebar-total-value { font-family:'Syne',sans-serif; font-weight:800; font-size:1.25rem; color:var(--accent); }
+
+    .cat-bars { display:flex; flex-direction:column; gap:11px; }
+    .cat-bar-row { display:flex; flex-direction:column; gap:5px; }
+    .cat-bar-row.toggleable { cursor:pointer; border-radius:8px; padding:6px 8px; transition:background 0.12s; }
+    .cat-bar-row.toggleable:hover { background:var(--surface2); }
+    .cat-bar-row.excluded { opacity:0.35; }
+    .cat-bar-header { display:flex; justify-content:space-between; align-items:baseline; }
+    .cat-bar-name { font-size:0.78rem; }
+    .cat-bar-val  { font-family:'Syne',sans-serif; font-weight:700; font-size:0.82rem; }
+    .cat-bar-track { height:8px; background:var(--surface2); border-radius:99px; overflow:hidden; }
+    .cat-bar-fill  { height:100%; border-radius:99px; transition:width 0.5s cubic-bezier(.4,0,.2,1); }
+
+    .year-chart-wrap { position:relative; height:240px; }
+    .year-cat-chart-wrap { position:relative; height:280px; }
+
+    .month-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+    .month-mini {
+      background:var(--surface2); border:1px solid var(--border); border-radius:10px;
+      padding:12px; cursor:pointer; transition:border-color 0.15s; position:relative;
+    }
+    .month-mini:hover { border-color:var(--accent); }
+    .month-mini.empty .month-mini-val { color:var(--border); }
+    .month-mini-name { font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px; }
+    .month-mini-val  { font-family:'Syne',sans-serif; font-weight:700; font-size:1rem; }
+    .month-mini-bar  { margin-top:8px; height:4px; background:var(--border); border-radius:99px; overflow:hidden; }
+    .month-mini-fill { height:100%; border-radius:99px; background:var(--accent); transition:width 0.4s ease; }
+
+    .year-nav-wrap { display:flex; align-items:center; gap:8px; }
+    #year-label { font-family:'Syne',sans-serif; font-weight:700; font-size:1rem; min-width:44px; text-align:center; cursor:pointer; }
+    .month-mini-budget { margin-top:5px; font-size:0.64rem; color:var(--muted); }
+    .month-reset {
+      position:absolute; top:6px; right:8px; width:18px; height:18px; border-radius:50%;
+      border:1px solid var(--border); color:var(--muted); display:flex; align-items:center; justify-content:center;
+      font-size:0.65rem; cursor:pointer; background:var(--surface); line-height:1;
+    }
+    .month-reset:hover { color:var(--red); border-color:var(--red); }
+
+    @media(max-width:980px) {
+      header { display:grid; grid-template-columns:1fr; gap:10px; padding:14px; }
+      .logo { width:100%; justify-content:space-between; }
+      #header-right { width:100%; display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px; }
+      .header-nav-slot { width:100%; min-width:0; }
+      .month-main { grid-template-columns:1fr; padding:20px 14px; }
+      .year-main { padding:20px 14px; }
+      .card { padding:16px; }
+      .year-budget-grid { grid-template-columns:1fr; }
+      .year-chart-wrap, .year-cat-chart-wrap { height:220px; }
+      .month-grid { grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); }
+    }
+    @media(max-width:800px) { .year-main{grid-template-columns:1fr} .month-grid{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))} }
+    @media(max-width:600px) {
+      header { padding:10px; gap:8px; }
+      #header-right { grid-template-columns:1fr; }
+      .tab-nav { width:100%; justify-content:flex-start; }
+      .header-nav-slot { height:34px; }
+      .month-main{grid-template-columns:1fr}
+      .summary-row{grid-template-columns:1fr}
+      .month-grid{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+      .year-chart-wrap, .year-cat-chart-wrap { height:200px; }
+      #month-label { min-width:unset; }
+    }
+    @media(max-width:420px) {
+      .month-grid{grid-template-columns:1fr}
+      .year-chart-wrap, .year-cat-chart-wrap { height:180px; }
+      .month-label-pick { min-width:unset; width:100%; }
+      .tab-nav { flex-wrap:wrap; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="logo-main"><span class="logo-spend">Spend</span><span class="logo-trend">Trend</span></span><span class="version-badge">v0.4.8</span>
+    <div class="lang-toggle">
+      <button id="lang-switch" class="lang-btn active" onclick="toggleLanguage()">FI</button>
+    </div>
+  </div>
+  <div id="header-right">
+    <div class="header-nav-slot">
+      <div class="month-nav" id="header-month-nav">
+      <button class="nav-btn" onclick="prevMonth()">&#8592;</button>
+      <div id="month-label" class="month-label-pick" onclick="openMonthPicker(event)"></div>
+      <button class="nav-btn" onclick="nextMonth()">&#8594;</button>
+      </div>
+      <div class="year-nav-wrap nav-hidden" id="header-year-nav">
+        <button class="nav-btn" onclick="yearNav(-1)">&#8592;</button>
+        <div id="year-label" class="month-label-pick" onclick="openMonthPicker(event)"></div>
+        <button class="nav-btn" onclick="yearNav(1)">&#8594;</button>
+      </div>
+      <div class="date-popup header-month-popup" id="header-month-popup" onclick="event.stopPropagation()">
+        <div class="jump-grid">
+          <select id="jump-month-select" class="jump-select"></select>
+          <select id="jump-year-select" class="jump-select"></select>
+        </div>
+        <button class="btn-small" style="width:100%" onclick="jumpToMonthYear()">OK</button>
+      </div>
+    </div>
+    <div class="tab-nav">
+      <button id="tab-month" class="tab-btn active" onclick="switchTab('month')">Kuukausi</button>
+      <button id="tab-year" class="tab-btn" onclick="switchTab('year')">Vuosi</button>
+    </div>
+  </div>
+</header>
+
+<div id="view-month" class="view active">
+  <div class="month-main">
+
+    <div id="warning-banner"><span>⚠</span><span id="warning-text"></span></div>
+
+    <div class="summary-row">
+      <div class="stat-card expenses">
+        <div class="stat-label" id="lbl-month-expenses">Menot tässä kuussa</div>
+        <div class="stat-value" id="stat-expenses">0,00 €</div>
+      </div>
+      <div class="stat-card budget">
+        <div class="stat-label" id="lbl-budget-left">Budjetti jäljellä</div>
+        <div class="stat-value" id="stat-budget">–</div>
+        <div class="budget-bar-wrap" id="budget-bar-wrap" style="display:none">
+          <div class="budget-bar-track"><div class="budget-bar-fill" id="budget-bar-fill"></div></div>
+          <div class="budget-bar-label" id="budget-bar-label"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" id="ttl-add-expense">Lisää meno</div>
+      <div class="form-grid">
+        <div>
+          <label id="lbl-amount">Summa (€)</label>
+          <input type="text" inputmode="decimal" id="inp-amount" placeholder="0.00" />
+        </div>
+        <div>
+          <label id="lbl-date">Päivämäärä</label>
+          <div class="date-input-wrap">
+            <div class="date-display" id="date-display" tabindex="0" onclick="toggleDatePicker(event)">
+              <span id="date-display-text">Valitse päivä</span>
+              <span class="arrow">▼</span>
+            </div>
+            <div class="date-popup" id="date-popup">
+              <div class="dp-header">
+                <button class="dp-nav" onclick="dpNav(event,-1)">‹</button>
+                <span class="dp-month-label" id="dp-month-label"></span>
+                <button class="dp-nav" onclick="dpNav(event,1)">›</button>
+              </div>
+              <div class="dp-weekdays">
+                <div class="dp-weekday" id="wd-0">Ma</div><div class="dp-weekday" id="wd-1">Ti</div>
+                <div class="dp-weekday" id="wd-2">Ke</div><div class="dp-weekday" id="wd-3">To</div>
+                <div class="dp-weekday" id="wd-4">Pe</div><div class="dp-weekday" id="wd-5">La</div>
+                <div class="dp-weekday" id="wd-6">Su</div>
+              </div>
+              <div class="dp-days" id="dp-days"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <label id="lbl-category">Kategoria</label>
+          <select id="inp-category"></select>
+        </div>
+        <div>
+          <label id="lbl-desc">Kuvaus</label>
+          <input type="text" id="inp-desc" placeholder="Valinnainen..." />
+        </div>
+        <div class="form-full">
+          <button class="btn-primary" id="btn-add-expense" onclick="addTransaction()">Lisää meno</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" id="ttl-budget-limit">Budjettiraja</div>
+      <div class="budget-setter">
+        <div><label id="lbl-month-budget">Kuukausibudjetti (€)</label><input type="text" inputmode="decimal" id="inp-budget" placeholder="esim. 600" /></div>
+        <button class="btn-small" id="btn-set-budget" onclick="setBudget()">Aseta</button>
+      </div>
+      <div style="margin-top:24px">
+        <div class="card-title" id="ttl-cat-month">Menot kategorioittain</div>
+        <div class="chart-wrap"><canvas id="chart-cat"></canvas></div>
+        <div id="month-cat-filter-list" class="month-filter-list"></div>
+      </div>
+    </div>
+
+    <div class="card span-full">
+      <div class="card-title-row">
+        <div class="card-title" id="ttl-entries" style="margin:0">Kirjaukset</div>
+        <button class="btn-small" id="btn-reset-current-month" onclick="resetCurrentMonth()">Nollaa kuukausi</button>
+      </div>
+      <div class="tx-list" id="tx-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="edit-modal-backdrop" id="edit-modal-backdrop" onclick="closeEditModal()">
+  <div class="edit-modal" onclick="event.stopPropagation()">
+    <div class="card-title" id="ttl-edit-expense">Muokkaa kirjausta</div>
+    <div class="form-grid">
+      <div><label id="lbl-edit-amount">Summa (€)</label><input type="text" inputmode="decimal" id="edit-amount" /></div>
+      <div><label id="lbl-edit-date">Päivämäärä</label><input type="date" id="edit-date" /></div>
+      <div><label id="lbl-edit-category">Kategoria</label><select id="edit-category"></select></div>
+      <div><label id="lbl-edit-desc">Kuvaus</label><input type="text" id="edit-desc" /></div>
+    </div>
+    <div class="edit-modal-actions">
+      <button class="btn-small" id="btn-edit-cancel" onclick="closeEditModal()">Peruuta</button>
+      <button class="btn-primary" id="btn-edit-save" style="margin-top:0" onclick="saveEditTx()">Tallenna</button>
+    </div>
+  </div>
+</div>
+
+<div id="view-year" class="view">
+  <div class="year-main">
+    <div class="year-content">
+      <div class="year-header-bar">
+        <div class="card-title" id="ttl-year-overview" style="margin:0">Vuosikatsaus</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" id="ttl-year-budget">Vuosibudjetti ja toteuma</div>
+        <div class="year-budget-grid">
+          <div class="year-budget-box">
+            <div class="year-budget-label" id="lbl-year-budget-total">Budjetoitu yhteensä</div>
+            <div class="year-budget-value" id="year-budget-total">0,00 €</div>
+          </div>
+          <div class="year-budget-box">
+            <div class="year-budget-label" id="lbl-year-expense-total">Kulutettu yhteensä</div>
+            <div class="year-budget-value" id="year-expense-total">0,00 €</div>
+          </div>
+          <div class="year-budget-box">
+            <div class="year-budget-label" id="lbl-year-diff">Erotus</div>
+            <div class="year-budget-value" id="year-budget-diff">0,00 €</div>
+          </div>
+        </div>
+        <div class="year-budget-note" id="year-budget-note"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" id="ttl-year-cats">Menot kategorioittain — suurimmasta pienimpään (klikkaa piilottaaksesi/näyttääksesi)</div>
+        <div class="cat-bars" id="year-cat-bars"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" id="ttl-year-cat-chart">Menot kategorioittain (vuosi)</div>
+        <div class="year-cat-chart-wrap"><canvas id="year-cat-chart"></canvas></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" id="ttl-year-monthly">Menot kuukausittain (väripinottu kategorioittain)</div>
+        <div class="year-chart-wrap"><canvas id="year-chart"></canvas></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" id="ttl-month-grid">Kuukaudet — klikkaa siirtyäksesi</div>
+        <div class="month-grid" id="month-grid"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="app.js"></script>
+
+</body>
+</html>
