@@ -101,6 +101,12 @@
     select option { background:var(--surface2); }
 
     .date-input-wrap { position:relative; }
+    .native-date {
+      width:100%; background:var(--surface2); border:1px solid var(--border);
+      color:var(--text); font-family:'DM Mono',monospace; font-size:0.82rem;
+      padding:10px 12px; border-radius:9px; margin-bottom:8px;
+    }
+    .native-date::-webkit-calendar-picker-indicator { filter: invert(0.8); cursor: pointer; }
     .date-display {
       width:100%; background:var(--surface2); border:1px solid var(--border);
       color:var(--text); font-family:'DM Mono',monospace; font-size:0.85rem;
@@ -195,6 +201,11 @@
       display:flex; align-items:center; justify-content:space-between; margin-bottom:0;
     }
     .year-content { display:flex; flex-direction:column; gap:20px; }
+    .year-budget-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+    .year-budget-box { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:12px; }
+    .year-budget-label { font-size:0.64rem; color:var(--muted); letter-spacing:0.06em; text-transform:uppercase; margin-bottom:6px; }
+    .year-budget-value { font-family:'Syne',sans-serif; font-weight:700; font-size:1rem; }
+    .year-budget-note { margin-top:10px; font-size:0.78rem; color:var(--muted); }
 
     .sidebar { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:20px; position:sticky; top:20px; }
     .sidebar-title { font-family:'Syne',sans-serif; font-weight:700; font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); margin-bottom:14px; }
@@ -299,6 +310,7 @@
               <span id="date-display-text">Valitse päivä</span>
               <span class="arrow">▼</span>
             </div>
+            <input class="native-date" type="date" id="inp-date-native" />
             <div class="date-popup" id="date-popup">
               <div class="dp-header">
                 <button class="dp-nav" onclick="dpNav(event,-1)">‹</button>
@@ -360,6 +372,25 @@
           <span id="year-label"></span>
           <button class="nav-btn" onclick="yearNav(1)">&#8594;</button>
         </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Vuosibudjetti ja toteuma</div>
+        <div class="year-budget-grid">
+          <div class="year-budget-box">
+            <div class="year-budget-label">Budjetoitu yhteensä</div>
+            <div class="year-budget-value" id="year-budget-total">0,00 €</div>
+          </div>
+          <div class="year-budget-box">
+            <div class="year-budget-label">Kulutettu yhteensä</div>
+            <div class="year-budget-value" id="year-expense-total">0,00 €</div>
+          </div>
+          <div class="year-budget-box">
+            <div class="year-budget-label">Erotus</div>
+            <div class="year-budget-value" id="year-budget-diff">0,00 €</div>
+          </div>
+        </div>
+        <div class="year-budget-note" id="year-budget-note"></div>
       </div>
 
       <div class="card">
@@ -438,6 +469,7 @@
     const dd = selectedDate.getDate().toString().padStart(2,'0');
     const mm = (selectedDate.getMonth()+1).toString().padStart(2,'0');
     document.getElementById('date-display-text').textContent = `${dd}.${mm}.${selectedDate.getFullYear()}`;
+    document.getElementById('inp-date-native').value = `${selectedDate.getFullYear()}-${mm}-${dd}`;
   }
 
   function switchTab(tab) {
@@ -517,16 +549,31 @@
     const dd = selectedDate.getDate().toString().padStart(2,'0');
     const mm = (selectedDate.getMonth()+1).toString().padStart(2,'0');
     document.getElementById('date-display-text').textContent = `${dd}.${mm}.${selectedDate.getFullYear()}`;
+    document.getElementById('inp-date-native').value = `${selectedDate.getFullYear()}-${mm}-${dd}`;
     document.getElementById('date-popup').classList.remove('open');
     document.getElementById('date-display').classList.remove('open');
     renderDP();
   }
 
   function getDateStr() {
+    const nativeDate = document.getElementById('inp-date-native').value;
+    if (nativeDate) return nativeDate;
     if (!selectedDate) return null;
     const d = selectedDate.getDate().toString().padStart(2,'0');
     const m = (selectedDate.getMonth()+1).toString().padStart(2,'0');
     return `${selectedDate.getFullYear()}-${m}-${d}`;
+  }
+
+  function handleNativeDateInput() {
+    const value = document.getElementById('inp-date-native').value;
+    if (!value) return;
+    const [year, month, day] = value.split('-').map(Number);
+    selectedDate = new Date(year, month - 1, day);
+    dpYear = selectedDate.getFullYear();
+    dpMonth = selectedDate.getMonth();
+    const dd = String(day).padStart(2,'0');
+    const mm = String(month).padStart(2,'0');
+    document.getElementById('date-display-text').textContent = `${dd}.${mm}.${year}`;
   }
 
   function addTransaction() {
@@ -711,6 +758,26 @@
           </div>
         </div>`).join('');
 
+    const yearBudgetTotal = Array.from({length:12}, (_,m)=>getBudget(viewYear,m)).reduce((s,v)=>s+v,0);
+    const yearExpenseTotal = Array.from({length:12}, (_,m)=>getTxs(viewYear,m).reduce((sum,t)=>sum+t.amount,0)).reduce((s,v)=>s+v,0);
+    const yearDiff = yearBudgetTotal - yearExpenseTotal;
+    document.getElementById('year-budget-total').textContent = fmt(yearBudgetTotal);
+    document.getElementById('year-expense-total').textContent = fmt(yearExpenseTotal);
+    const diffEl = document.getElementById('year-budget-diff');
+    diffEl.textContent = `${yearDiff>=0?'+':'−'}${fmt(Math.abs(yearDiff))}`;
+    diffEl.style.color = yearDiff >= 0 ? 'var(--green)' : 'var(--red)';
+    const noteEl = document.getElementById('year-budget-note');
+    if (yearBudgetTotal <= 0) {
+      noteEl.textContent = 'Aseta kuukausibudjetteja, niin näet vuositasolla oletko yli vai ali budjetin.';
+      noteEl.style.color = 'var(--muted)';
+    } else if (yearDiff >= 0) {
+      noteEl.textContent = `Hyvä! Olet vuosibudjetissa ${fmt(yearDiff)} edellä.`;
+      noteEl.style.color = 'var(--green)';
+    } else {
+      noteEl.textContent = `Huom! Olet vuosibudjetista ${fmt(Math.abs(yearDiff))} yli.`;
+      noteEl.style.color = 'var(--red)';
+    }
+
     const yCtx=document.getElementById('year-chart').getContext('2d');
     if(yearChart) yearChart.destroy();
     const sortedCats = Object.keys(monthCatTotals).sort((a,b)=>(catTotals[b]||0)-(catTotals[a]||0));
@@ -777,6 +844,7 @@
   }
 
   document.getElementById('inp-category').innerHTML = EXPENSE_CATS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+  document.getElementById('inp-date-native').addEventListener('input', handleNativeDateInput);
   syncSelectedDateToCurrentMonth();
   updateMonthLabel();
   renderMonth();
