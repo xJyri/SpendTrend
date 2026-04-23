@@ -35,6 +35,13 @@
     }
     .tab-btn:hover { color: var(--text); }
     .tab-btn.active { background: var(--surface2); border-color: var(--border); color: var(--accent); }
+    .lang-toggle { display:flex; gap:6px; }
+    .lang-btn {
+      background:var(--surface2); border:1px solid var(--border); color:var(--muted);
+      border-radius:8px; padding:6px 10px; font-size:0.72rem; cursor:pointer;
+      display:flex; align-items:center; gap:6px;
+    }
+    .lang-btn.active { color:var(--accent); border-color:var(--accent); }
 
     .month-nav { display: flex; align-items: center; gap: 10px; }
     .nav-btn {
@@ -263,6 +270,7 @@
       .month-main{grid-template-columns:1fr}
       .summary-row{grid-template-columns:1fr}
       .month-grid{grid-template-columns:repeat(2,1fr)}
+      .year-chart-wrap, .year-cat-chart-wrap { height:200px; }
       .tab-nav { width:100%; justify-content:flex-start; }
       #header-right { justify-content:flex-start; }
       #month-label { min-width:unset; }
@@ -272,10 +280,14 @@
 <body>
 
 <header>
-  <div class="logo">Spend<span>Trend</span><span class="version-badge">v0.3.3</span></div>
+  <div class="logo">Spend<span>Trend</span><span class="version-badge">v0.4.0</span></div>
   <div class="tab-nav">
-    <button class="tab-btn active" onclick="switchTab('month')">Kuukausi</button>
-    <button class="tab-btn" onclick="switchTab('year')">Vuosi</button>
+    <button id="tab-month" class="tab-btn active" onclick="switchTab('month')">Kuukausi</button>
+    <button id="tab-year" class="tab-btn" onclick="switchTab('year')">Vuosi</button>
+  </div>
+  <div class="lang-toggle">
+    <button id="lang-fi" class="lang-btn" onclick="setLanguage('fi')">🇫🇮 FI</button>
+    <button id="lang-en" class="lang-btn" onclick="setLanguage('en')">🇬🇧 EN</button>
   </div>
   <div id="header-right">
     <div class="month-nav">
@@ -293,11 +305,11 @@
 
     <div class="summary-row">
       <div class="stat-card expenses">
-        <div class="stat-label">Menot tässä kuussa</div>
+        <div class="stat-label" id="lbl-month-expenses">Menot tässä kuussa</div>
         <div class="stat-value" id="stat-expenses">0,00 €</div>
       </div>
       <div class="stat-card budget">
-        <div class="stat-label">Budjetti jäljellä</div>
+        <div class="stat-label" id="lbl-budget-left">Budjetti jäljellä</div>
         <div class="stat-value" id="stat-budget">–</div>
         <div class="budget-bar-wrap" id="budget-bar-wrap" style="display:none">
           <div class="budget-bar-track"><div class="budget-bar-fill" id="budget-bar-fill"></div></div>
@@ -307,14 +319,14 @@
     </div>
 
     <div class="card">
-      <div class="card-title">Lisää meno</div>
+      <div class="card-title" id="ttl-add-expense">Lisää meno</div>
       <div class="form-grid">
         <div>
-          <label>Summa (€)</label>
+          <label id="lbl-amount">Summa (€)</label>
           <input type="number" id="inp-amount" placeholder="0.00" min="0" step="0.01" />
         </div>
         <div>
-          <label>Päivämäärä</label>
+          <label id="lbl-date">Päivämäärä</label>
           <div class="date-input-wrap">
             <div class="date-display" id="date-display" onclick="toggleDatePicker(event)">
               <span id="date-display-text">Valitse päivä</span>
@@ -337,34 +349,34 @@
           </div>
         </div>
         <div>
-          <label>Kategoria</label>
+          <label id="lbl-category">Kategoria</label>
           <select id="inp-category"></select>
         </div>
         <div>
-          <label>Kuvaus</label>
+          <label id="lbl-desc">Kuvaus</label>
           <input type="text" id="inp-desc" placeholder="Valinnainen..." />
         </div>
         <div class="form-full">
-          <button class="btn-primary" onclick="addTransaction()">Lisää meno</button>
+          <button class="btn-primary" id="btn-add-expense" onclick="addTransaction()">Lisää meno</button>
         </div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-title">Budjettiraja</div>
+      <div class="card-title" id="ttl-budget-limit">Budjettiraja</div>
       <div class="budget-setter">
-        <div><label>Kuukausibudjetti (€)</label><input type="number" id="inp-budget" placeholder="esim. 600" min="0" /></div>
-        <button class="btn-small" onclick="setBudget()">Aseta</button>
+        <div><label id="lbl-month-budget">Kuukausibudjetti (€)</label><input type="number" id="inp-budget" placeholder="esim. 600" min="0" /></div>
+        <button class="btn-small" id="btn-set-budget" onclick="setBudget()">Aseta</button>
       </div>
       <div style="margin-top:24px">
-        <div class="card-title">Menot kategorioittain</div>
+        <div class="card-title" id="ttl-cat-month">Menot kategorioittain</div>
         <div class="chart-wrap"><canvas id="chart-cat"></canvas></div>
         <div id="month-cat-filter-list" class="month-filter-list"></div>
       </div>
     </div>
 
     <div class="card span-full">
-      <div class="card-title">Kirjaukset</div>
+      <div class="card-title" id="ttl-entries">Kirjaukset</div>
       <div class="tx-list" id="tx-list"></div>
     </div>
 
@@ -375,7 +387,7 @@
   <div class="year-main">
     <div class="year-content">
       <div class="year-header-bar">
-        <div class="card-title" style="margin:0">Vuosikatsaus</div>
+        <div class="card-title" id="ttl-year-overview" style="margin:0">Vuosikatsaus</div>
         <div class="year-nav-wrap">
           <button class="nav-btn" onclick="yearNav(-1)">&#8592;</button>
           <span id="year-label"></span>
@@ -384,18 +396,18 @@
       </div>
 
       <div class="card">
-        <div class="card-title">Vuosibudjetti ja toteuma</div>
+        <div class="card-title" id="ttl-year-budget">Vuosibudjetti ja toteuma</div>
         <div class="year-budget-grid">
           <div class="year-budget-box">
-            <div class="year-budget-label">Budjetoitu yhteensä</div>
+            <div class="year-budget-label" id="lbl-year-budget-total">Budjetoitu yhteensä</div>
             <div class="year-budget-value" id="year-budget-total">0,00 €</div>
           </div>
           <div class="year-budget-box">
-            <div class="year-budget-label">Kulutettu yhteensä</div>
+            <div class="year-budget-label" id="lbl-year-expense-total">Kulutettu yhteensä</div>
             <div class="year-budget-value" id="year-expense-total">0,00 €</div>
           </div>
           <div class="year-budget-box">
-            <div class="year-budget-label">Erotus</div>
+            <div class="year-budget-label" id="lbl-year-diff">Erotus</div>
             <div class="year-budget-value" id="year-budget-diff">0,00 €</div>
           </div>
         </div>
@@ -403,22 +415,22 @@
       </div>
 
       <div class="card">
-        <div class="card-title">Menot kategorioittain — suurimmasta pienimpään (klikkaa piilottaaksesi/näyttääksesi)</div>
+        <div class="card-title" id="ttl-year-cats">Menot kategorioittain — suurimmasta pienimpään (klikkaa piilottaaksesi/näyttääksesi)</div>
         <div class="cat-bars" id="year-cat-bars"></div>
       </div>
 
       <div class="card">
-        <div class="card-title">Menot kategorioittain (vuosi)</div>
+        <div class="card-title" id="ttl-year-cat-chart">Menot kategorioittain (vuosi)</div>
         <div class="year-cat-chart-wrap"><canvas id="year-cat-chart"></canvas></div>
       </div>
 
       <div class="card">
-        <div class="card-title">Menot kuukausittain (väripinottu kategorioittain)</div>
+        <div class="card-title" id="ttl-year-monthly">Menot kuukausittain (väripinottu kategorioittain)</div>
         <div class="year-chart-wrap"><canvas id="year-chart"></canvas></div>
       </div>
 
       <div class="card">
-        <div class="card-title">Kuukaudet — klikkaa siirtyäksesi</div>
+        <div class="card-title" id="ttl-month-grid">Kuukaudet — klikkaa siirtyäksesi</div>
         <div class="month-grid" id="month-grid"></div>
       </div>
     </div>
@@ -435,6 +447,7 @@
   let monthChart   = null;
   let yearChart    = null;
   let yearCatChart = null;
+  let currentLang  = localStorage.getItem('st_lang') || 'fi';
 
   let dpYear  = TODAY.getFullYear();
   let dpMonth = TODAY.getMonth();
@@ -443,8 +456,61 @@
   let excludedCats = new Set();
   let monthExcludedCats = new Set();
 
-  const MONTHS_FI    = ['Tammikuu','Helmikuu','Maaliskuu','Huhtikuu','Toukokuu','Kesäkuu','Heinäkuu','Elokuu','Syyskuu','Lokakuu','Marraskuu','Joulukuu'];
-  const MONTHS_SHORT = ['Tam','Hel','Maa','Huh','Tou','Kes','Hei','Elo','Syy','Lok','Mar','Jou'];
+  const I18N = {
+    fi: {
+      monthTab: 'Kuukausi', yearTab: 'Vuosi',
+      monthExpenses: 'Menot tässä kuussa', budgetLeft: 'Budjetti jäljellä',
+      addExpense: 'Lisää meno', amount: 'Summa (€)', date: 'Päivämäärä', category: 'Kategoria', description: 'Kuvaus',
+      budgetLimit: 'Budjettiraja', monthBudget: 'Kuukausibudjetti (€)', set: 'Aseta',
+      monthByCategory: 'Menot kategorioittain', entries: 'Kirjaukset',
+      yearOverview: 'Vuosikatsaus', yearBudget: 'Vuosibudjetti ja toteuma', yearBudgetTotal: 'Budjetoitu yhteensä',
+      yearExpenseTotal: 'Kulutettu yhteensä', diff: 'Erotus',
+      yearCats: 'Menot kategorioittain — suurimmasta pienimpään (klikkaa piilottaaksesi/näyttääksesi)',
+      yearCatChart: 'Menot kategorioittain (vuosi)', yearMonthly: 'Menot kuukausittain (väripinottu kategorioittain)',
+      monthGrid: 'Kuukaudet — klikkaa siirtyäksesi',
+      fillAmountDate: 'Täytä summa ja päivämäärä.',
+      wrongMonthDate: 'Valittu päivämäärä ei kuulu näkyvään kuukauteen. Vaihda päivä samalle kuukaudelle.',
+      giveBudget: 'Anna budjettiraja.',
+      noBudget: 'Ei asetettu',
+      noEntriesYet: 'Ei menokirjauksia vielä',
+      noExpensesMonth: 'Ei menoja tässä kuussa.<br>Lisää ensimmäinen meno!',
+      noCategoriesMonth: 'Ei kategorioita tässä kuussa',
+      noEntries: 'Ei menokirjauksia.',
+      yearTotal: 'Vuosiyhteensä',
+      budgetHint: 'Aseta kuukausibudjetteja, niin näet vuositasolla oletko yli vai ali budjetin.',
+      underYear: 'Hyvä! Olet vuosibudjetissa {amount} edellä.',
+      overYear: 'Huom! Olet vuosibudjetista {amount} yli.',
+      monthsFull: ['Tammikuu','Helmikuu','Maaliskuu','Huhtikuu','Toukokuu','Kesäkuu','Heinäkuu','Elokuu','Syyskuu','Lokakuu','Marraskuu','Joulukuu'],
+      monthsShort: ['Tam','Hel','Maa','Huh','Tou','Kes','Hei','Elo','Syy','Lok','Mar','Jou']
+    },
+    en: {
+      monthTab: 'Month', yearTab: 'Year',
+      monthExpenses: 'Expenses this month', budgetLeft: 'Budget left',
+      addExpense: 'Add expense', amount: 'Amount (€)', date: 'Date', category: 'Category', description: 'Description',
+      budgetLimit: 'Budget limit', monthBudget: 'Monthly budget (€)', set: 'Set',
+      monthByCategory: 'Expenses by category', entries: 'Entries',
+      yearOverview: 'Year overview', yearBudget: 'Year budget vs actual', yearBudgetTotal: 'Total budgeted',
+      yearExpenseTotal: 'Total spent', diff: 'Difference',
+      yearCats: 'Expenses by category — largest to smallest (click to hide/show)',
+      yearCatChart: 'Expenses by category (year)', yearMonthly: 'Expenses by month (stacked by category)',
+      monthGrid: 'Months — click to open',
+      fillAmountDate: 'Please fill amount and date.',
+      wrongMonthDate: 'Selected date is outside current month. Pick a date from the current month.',
+      giveBudget: 'Enter a budget.',
+      noBudget: 'Not set',
+      noEntriesYet: 'No expense entries yet',
+      noExpensesMonth: 'No expenses this month.<br>Add your first expense!',
+      noCategoriesMonth: 'No categories in this month',
+      noEntries: 'No expense entries.',
+      yearTotal: 'Year total',
+      budgetHint: 'Set monthly budgets to see yearly over/under status.',
+      underYear: 'Great! You are {amount} under yearly budget.',
+      overYear: 'Heads up! You are {amount} over yearly budget.',
+      monthsFull: ['January','February','March','April','May','June','July','August','September','October','November','December'],
+      monthsShort: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    }
+  };
+  const t = (k) => I18N[currentLang][k] || k;
 
   const EXPENSE_CATS = [
     ['Ruokakauppa','🛒 Ruokakauppa'],['Liikenne','🚌 Liikenne'],['Asuminen','🏠 Asuminen'],
@@ -468,6 +534,33 @@
   function fmt(n) { return n.toLocaleString('fi-FI',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
   function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function fmtDate(d) { const [y,m,day]=d.split('-'); return `${day}.${m}.${y}`; }
+  function monthNamesFull() { return I18N[currentLang].monthsFull; }
+  function monthNamesShort() { return I18N[currentLang].monthsShort; }
+
+  function applyI18n() {
+    const map = {
+      'tab-month':'monthTab','tab-year':'yearTab','lbl-month-expenses':'monthExpenses','lbl-budget-left':'budgetLeft',
+      'ttl-add-expense':'addExpense','lbl-amount':'amount','lbl-date':'date','lbl-category':'category','lbl-desc':'description',
+      'btn-add-expense':'addExpense','ttl-budget-limit':'budgetLimit','lbl-month-budget':'monthBudget','btn-set-budget':'set',
+      'ttl-cat-month':'monthByCategory','ttl-entries':'entries','ttl-year-overview':'yearOverview','ttl-year-budget':'yearBudget',
+      'lbl-year-budget-total':'yearBudgetTotal','lbl-year-expense-total':'yearExpenseTotal','lbl-year-diff':'diff',
+      'ttl-year-cats':'yearCats','ttl-year-cat-chart':'yearCatChart','ttl-year-monthly':'yearMonthly','ttl-month-grid':'monthGrid'
+    };
+    Object.entries(map).forEach(([id,key]) => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = t(key);
+    });
+    document.getElementById('lang-fi').classList.toggle('active', currentLang === 'fi');
+    document.getElementById('lang-en').classList.toggle('active', currentLang === 'en');
+    updateMonthLabel();
+    if (currentTab === 'month') renderMonth(); else renderYear();
+  }
+
+  function setLanguage(lang) {
+    currentLang = lang;
+    localStorage.setItem('st_lang', lang);
+    applyI18n();
+  }
 
   function syncSelectedDateToCurrentMonth() {
     const currentDay = selectedDate ? selectedDate.getDate() : 1;
@@ -505,7 +598,7 @@
     renderMonth();
   }
 
-  function updateMonthLabel() { document.getElementById('month-label').textContent = MONTHS_FI[currentMonth]+' '+currentYear; }
+  function updateMonthLabel() { document.getElementById('month-label').textContent = monthNamesFull()[currentMonth]+' '+currentYear; }
 
   function toggleDatePicker(e) {
     e.stopPropagation();
@@ -530,7 +623,7 @@
   }
 
   function renderDP() {
-    document.getElementById('dp-month-label').textContent = MONTHS_FI[dpMonth]+' '+dpYear;
+    document.getElementById('dp-month-label').textContent = monthNamesFull()[dpMonth]+' '+dpYear;
     const first  = new Date(dpYear, dpMonth, 1).getDay();
     const days   = new Date(dpYear, dpMonth+1, 0).getDate();
     const prevDays = new Date(dpYear, dpMonth, 0).getDate();
@@ -575,11 +668,11 @@
     const cat    = document.getElementById('inp-category').value;
     const desc   = document.getElementById('inp-desc').value.trim();
 
-    if (!amount||amount<=0||!date) { alert('Täytä summa ja päivämäärä.'); return; }
+    if (!amount||amount<=0||!date) { alert(t('fillAmountDate')); return; }
 
     const txDate = new Date(date);
     if (txDate.getFullYear() !== currentYear || txDate.getMonth() !== currentMonth) {
-      alert('Valittu päivämäärä ei kuulu näkyvään kuukauteen. Vaihda päivä samalle kuukaudelle.');
+      alert(t('wrongMonthDate'));
       return;
     }
 
@@ -598,7 +691,7 @@
 
   function setBudget() {
     const v = parseFloat(document.getElementById('inp-budget').value);
-    if (!v||v<=0){alert('Anna budjettiraja.');return;}
+    if (!v||v<=0){alert(t('giveBudget'));return;}
     saveBudget(v);
     renderMonth();
   }
@@ -637,7 +730,7 @@
         document.getElementById('warning-text').textContent=`Huom! Olet käyttänyt ${Math.round(pct)}% budjetistasi — jäljellä ${fmt(rem)}.`;
       } else { banner.style.display='none'; }
     } else {
-      document.getElementById('stat-budget').textContent='Ei asetettu';
+      document.getElementById('stat-budget').textContent=t('noBudget');
       document.getElementById('stat-budget').style.color='var(--muted)';
       document.getElementById('budget-bar-wrap').style.display='none';
       document.getElementById('warning-banner').style.display='none';
@@ -655,7 +748,7 @@
     if(labels.length===0){
       monthChart=null; ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
       ctx.fillStyle='#6b7280'; ctx.font='13px DM Mono,monospace'; ctx.textAlign='center';
-      ctx.fillText('Ei menokirjauksia vielä',ctx.canvas.width/2,ctx.canvas.height/2);
+      ctx.fillText(t('noEntriesYet'),ctx.canvas.width/2,ctx.canvas.height/2);
     } else {
       monthChart=new Chart(ctx,{
         type:'doughnut',
@@ -671,7 +764,7 @@
 
     const monthSortedAll = Object.entries(monthAllCatTotals).sort((a,b)=>b[1]-a[1]);
     document.getElementById('month-cat-filter-list').innerHTML = monthSortedAll.length===0
-      ? '<div class="empty-state" style="padding:8px 0">Ei kategorioita tässä kuussa</div>'
+      ? `<div class="empty-state" style="padding:8px 0">${t('noCategoriesMonth')}</div>`
       : monthSortedAll.map(([cat,total])=>`
         <div class="month-filter-item ${monthExcludedCats.has(cat)?'excluded':''}" onclick="toggleMonthCat('${cat}')">
           <div class="cat-dot-sm" style="background:${catColor(cat)}"></div>
@@ -683,7 +776,7 @@
     const list=document.getElementById('tx-list');
     const sorted=[...txs].sort((a,b)=>b.date.localeCompare(a.date));
     list.innerHTML=sorted.length===0
-      ?'<div class="empty-state">Ei menoja tässä kuussa.<br>Lisää ensimmäinen meno!</div>'
+      ?`<div class="empty-state">${t('noExpensesMonth')}</div>`
       :sorted.map(t=>`
         <div class="tx-item">
           <div class="tx-dot" style="background:${catColor(t.category)}"></div>
@@ -739,7 +832,7 @@
     const sorted = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
     const maxAllCat = sortedAll[0]?.[1]||1;
     document.getElementById('year-cat-bars').innerHTML = sortedAll.length===0
-      ? '<div class="empty-state">Ei menokirjauksia.</div>'
+      ? `<div class="empty-state">${t('noEntries')}</div>`
       : sortedAll.map(([cat,total])=>`
         <div class="cat-bar-row toggleable ${excludedCats.has(cat)?'excluded':''}" onclick="toggleCat('${cat}')">
           <div class="cat-bar-header">
@@ -761,13 +854,13 @@
     diffEl.style.color = yearDiff >= 0 ? 'var(--green)' : 'var(--red)';
     const noteEl = document.getElementById('year-budget-note');
     if (yearBudgetTotal <= 0) {
-      noteEl.textContent = 'Aseta kuukausibudjetteja, niin näet vuositasolla oletko yli vai ali budjetin.';
+      noteEl.textContent = t('budgetHint');
       noteEl.style.color = 'var(--muted)';
     } else if (yearDiff >= 0) {
-      noteEl.textContent = `Hyvä! Olet vuosibudjetissa ${fmt(yearDiff)} edellä.`;
+      noteEl.textContent = t('underYear').replace('{amount}', fmt(yearDiff));
       noteEl.style.color = 'var(--green)';
     } else {
-      noteEl.textContent = `Huom! Olet vuosibudjetista ${fmt(Math.abs(yearDiff))} yli.`;
+      noteEl.textContent = t('overYear').replace('{amount}', fmt(Math.abs(yearDiff)));
       noteEl.style.color = 'var(--red)';
     }
 
@@ -777,7 +870,7 @@
     yearChart=new Chart(yCtx,{
       type:'bar',
       data:{
-        labels:MONTHS_SHORT,
+        labels:monthNamesShort(),
         datasets:sortedCats.map(cat => ({
           label: cat,
           data: monthCatTotals[cat],
@@ -804,7 +897,7 @@
       data: {
         labels: sorted.map(([cat]) => cat),
         datasets: [{
-          label: 'Vuosiyhteensä',
+          label: t('yearTotal'),
           data: sorted.map(([, total]) => total),
           backgroundColor: sorted.map(([cat]) => catColor(cat)),
           borderRadius: 6,
@@ -826,7 +919,7 @@
     });
 
     const maxM=Math.max(...monthTotals,1);
-    document.getElementById('month-grid').innerHTML = MONTHS_SHORT.map((name,i)=>{
+    document.getElementById('month-grid').innerHTML = monthNamesShort().map((name,i)=>{
       const v=monthTotals[i], pct=(v/maxM*100).toFixed(1);
       return `<div class="month-mini ${v===0?'empty':''}" onclick="goToMonth(${i})">
         <div class="month-mini-name">${name}</div>
@@ -838,8 +931,7 @@
 
   document.getElementById('inp-category').innerHTML = EXPENSE_CATS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
   syncSelectedDateToCurrentMonth();
-  updateMonthLabel();
-  renderMonth();
+  applyI18n();
 </script>
 </body>
 </html>
