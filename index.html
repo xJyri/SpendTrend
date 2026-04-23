@@ -19,8 +19,7 @@
       padding: 20px 32px; display: flex; align-items: center; justify-content: space-between;
       border-bottom: 1px solid var(--border);
     }
-    .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; letter-spacing: -0.04em; display:flex; align-items:center; gap:10px; }
-    .logo span { color: var(--accent); }
+    .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; letter-spacing: -0.04em; display:flex; align-items:center; gap:10px; color:var(--accent); }
     .version-badge {
       font-family:'DM Mono',monospace; font-size:0.62rem; color:var(--muted);
       border:1px solid var(--border); border-radius:99px; padding:3px 8px;
@@ -190,7 +189,7 @@
 
     .year-main {
       max-width:1200px; margin:0 auto; padding:28px 24px;
-      display:grid; grid-template-columns:220px 1fr; gap:20px; align-items:start;
+      display:grid; grid-template-columns:1fr; gap:20px; align-items:start;
     }
     .year-header-bar {
       display:flex; align-items:center; justify-content:space-between; margin-bottom:0;
@@ -252,7 +251,7 @@
 <body>
 
 <header>
-  <div class="logo">Spend<span>Trend</span><span class="version-badge">v0.3.1</span></div>
+  <div class="logo">SpendTrend<span class="version-badge">v0.3.2</span></div>
   <div class="tab-nav">
     <button class="tab-btn active" onclick="switchTab('month')">Kuukausi</button>
     <button class="tab-btn" onclick="switchTab('year')">Vuosi</button>
@@ -353,16 +352,6 @@
 
 <div id="view-year" class="view">
   <div class="year-main">
-
-    <div class="sidebar">
-      <div class="sidebar-title">Kategoriat</div>
-      <div id="cat-filter-list"></div>
-      <div class="sidebar-total">
-        <div class="sidebar-total-label">Näytetään yhteensä</div>
-        <div class="sidebar-total-value" id="year-total-shown">0,00 €</div>
-      </div>
-    </div>
-
     <div class="year-content">
       <div class="year-header-bar">
         <div class="card-title" style="margin:0">Vuosikatsaus</div>
@@ -705,31 +694,20 @@
     document.getElementById('year-label').textContent = viewYear;
     const allCats = getAllCatTotals();
     const {catTotals, monthTotals, monthCatTotals} = getYearData();
-    const totalShown = Object.values(catTotals).reduce((s,v)=>s+v,0);
-
     const sortedAll = Object.entries(allCats).sort((a,b)=>b[1]-a[1]);
-    document.getElementById('cat-filter-list').innerHTML = sortedAll.length===0
-      ? '<div class="empty-state" style="padding:12px 0">Ei dataa</div>'
-      : sortedAll.map(([cat,total])=>`
-        <div class="cat-filter-item ${excludedCats.has(cat)?'excluded':''}">
-          <div class="cat-dot-sm" style="background:${catColor(cat)}"></div>
-          <span class="cat-filter-label">${cat}</span>
-          <span class="cat-filter-amt">${fmt(total)}</span>
-        </div>`).join('');
-    document.getElementById('year-total-shown').textContent = fmt(totalShown);
 
     const sorted = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]);
-    const maxCat = sorted[0]?.[1]||1;
-    document.getElementById('year-cat-bars').innerHTML = sorted.length===0
+    const maxAllCat = sortedAll[0]?.[1]||1;
+    document.getElementById('year-cat-bars').innerHTML = sortedAll.length===0
       ? '<div class="empty-state">Ei menokirjauksia.</div>'
-      : sorted.map(([cat,total])=>`
+      : sortedAll.map(([cat,total])=>`
         <div class="cat-bar-row toggleable ${excludedCats.has(cat)?'excluded':''}" onclick="toggleCat('${cat}')">
           <div class="cat-bar-header">
             <span class="cat-bar-name">${cat}</span>
             <span class="cat-bar-val">${fmt(total)} ${excludedCats.has(cat)?'○':'●'}</span>
           </div>
           <div class="cat-bar-track">
-            <div class="cat-bar-fill" style="width:${(total/maxCat*100).toFixed(1)}%;background:${catColor(cat)}"></div>
+            <div class="cat-bar-fill" style="width:${(total/maxAllCat*100).toFixed(1)}%;background:${catColor(cat)}"></div>
           </div>
         </div>`).join('');
 
