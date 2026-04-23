@@ -70,6 +70,10 @@
 
     .view { display: none; }
     .view.active { display: block; }
+    .edit-modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.65); display:none; align-items:center; justify-content:center; z-index:999; padding:16px; }
+    .edit-modal-backdrop.open { display:flex; }
+    .edit-modal { width:min(460px, 100%); background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:18px; }
+    .edit-modal-actions { display:flex; gap:8px; margin-top:10px; }
 
     .month-main {
       max-width: 1100px; margin: 0 auto; padding: 28px 24px;
@@ -291,23 +295,29 @@
       .year-main { padding:20px 14px; }
       .card { padding:16px; }
       .year-budget-grid { grid-template-columns:1fr; }
+      .year-chart-wrap, .year-cat-chart-wrap { height:220px; }
+      .month-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
     }
     @media(max-width:800px) { .year-main{grid-template-columns:1fr} .month-grid{grid-template-columns:repeat(3,1fr)} }
     @media(max-width:600px) {
+      header { padding:12px; gap:8px; }
+      .logo { width:100%; justify-content:space-between; }
+      #header-right { flex-direction:column; align-items:stretch; gap:8px; }
+      .tab-nav { justify-content:flex-end; }
       .month-main{grid-template-columns:1fr}
       .summary-row{grid-template-columns:1fr}
       .month-grid{grid-template-columns:repeat(2,1fr)}
       .year-chart-wrap, .year-cat-chart-wrap { height:200px; }
-      .tab-nav { width:100%; justify-content:flex-start; }
       #header-right { justify-content:space-between; width:100%; }
       #month-label { min-width:unset; }
     }
+    @media(max-width:420px) { .month-grid{grid-template-columns:1fr} .year-chart-wrap, .year-cat-chart-wrap { height:180px; } }
   </style>
 </head>
 <body>
 
 <header>
-  <div class="logo"><span class="logo-main"><span class="logo-spend">Spend</span><span class="logo-trend">Trend</span></span><span class="version-badge">v0.4.6</span>
+  <div class="logo"><span class="logo-main"><span class="logo-spend">Spend</span><span class="logo-trend">Trend</span></span><span class="version-badge">v0.4.7</span>
     <div class="lang-toggle">
       <button id="lang-switch" class="lang-btn active" onclick="toggleLanguage()">FI</button>
     </div>
@@ -427,6 +437,22 @@
   </div>
 </div>
 
+<div class="edit-modal-backdrop" id="edit-modal-backdrop" onclick="closeEditModal()">
+  <div class="edit-modal" onclick="event.stopPropagation()">
+    <div class="card-title" id="ttl-edit-expense">Muokkaa kirjausta</div>
+    <div class="form-grid">
+      <div><label id="lbl-edit-amount">Summa (€)</label><input type="text" inputmode="decimal" id="edit-amount" /></div>
+      <div><label id="lbl-edit-date">Päivämäärä</label><input type="date" id="edit-date" /></div>
+      <div><label id="lbl-edit-category">Kategoria</label><select id="edit-category"></select></div>
+      <div><label id="lbl-edit-desc">Kuvaus</label><input type="text" id="edit-desc" /></div>
+    </div>
+    <div class="edit-modal-actions">
+      <button class="btn-small" id="btn-edit-cancel" onclick="closeEditModal()">Peruuta</button>
+      <button class="btn-primary" id="btn-edit-save" style="margin-top:0" onclick="saveEditTx()">Tallenna</button>
+    </div>
+  </div>
+</div>
+
 <div id="view-year" class="view">
   <div class="year-main">
     <div class="year-content">
@@ -491,7 +517,7 @@
   let dpYear  = TODAY.getFullYear();
   let dpMonth = TODAY.getMonth();
   let selectedDate = new Date(TODAY);
-  let editingTxId = null;
+  let editingModalTxId = null;
 
   let excludedCats = new Set();
   let monthExcludedCats = new Set();
@@ -528,6 +554,9 @@
       delete: 'Poista',
       edit: 'Muokkaa',
       saveChanges: 'Tallenna muutos',
+      editEntry: 'Muokkaa kirjausta',
+      cancel: 'Peruuta',
+      save: 'Tallenna',
       weekdays: ['Ma','Ti','Ke','To','Pe','La','Su'],
       budgetHint: 'Aseta kuukausibudjetteja, niin näet vuositasolla oletko yli vai ali budjetin.',
       underYear: 'Hyvä! Olet vuosibudjetissa {amount} edellä.',
@@ -566,6 +595,9 @@
       delete: 'Delete',
       edit: 'Edit',
       saveChanges: 'Save changes',
+      editEntry: 'Edit entry',
+      cancel: 'Cancel',
+      save: 'Save',
       weekdays: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
       budgetHint: 'Set monthly budgets to see yearly over/under status.',
       underYear: 'Great! You are {amount} under yearly budget.',
@@ -643,17 +675,25 @@
       if (wd) wd.textContent = d;
     });
     const select = document.getElementById('inp-category');
+    const editSelect = document.getElementById('edit-category');
     if (select) {
       const currentValue = select.value;
-      select.innerHTML = EXPENSE_CATS.map((c)=>`<option value="${c.key}">${c.emoji} ${currentLang==='fi'?c.fi:c.en}</option>`).join('');
+      const options = EXPENSE_CATS.map((c)=>`<option value="${c.key}">${c.emoji} ${currentLang==='fi'?c.fi:c.en}</option>`).join('');
+      select.innerHTML = options;
+      if (editSelect) editSelect.innerHTML = options;
       if (currentValue) select.value = currentValue;
     }
     const langBtn = document.getElementById('lang-switch');
     langBtn.textContent = currentLang === 'fi' ? 'FI' : 'EN';
     const resetBtn = document.getElementById('btn-reset-current-month');
     if (resetBtn) resetBtn.textContent = t('resetMonth');
-    const addBtn = document.getElementById('btn-add-expense');
-    if (addBtn) addBtn.textContent = editingTxId ? t('saveChanges') : t('addExpense');
+    document.getElementById('ttl-edit-expense').textContent = t('editEntry');
+    document.getElementById('lbl-edit-amount').textContent = t('amount');
+    document.getElementById('lbl-edit-date').textContent = t('date');
+    document.getElementById('lbl-edit-category').textContent = t('category');
+    document.getElementById('lbl-edit-desc').textContent = t('description');
+    document.getElementById('btn-edit-cancel').textContent = t('cancel');
+    document.getElementById('btn-edit-save').textContent = t('save');
     updateMonthLabel();
     if (currentTab === 'month') renderMonth(); else renderYear();
   }
@@ -813,41 +853,47 @@
     }
 
     const txs = getTxs(currentYear,currentMonth);
-    if (editingTxId) {
-      const idx = txs.findIndex(tx => tx.id === editingTxId);
-      if (idx >= 0) txs[idx] = { ...txs[idx], amount, date, category:cat, desc };
-      editingTxId = null;
-    } else {
-      txs.push({id:Date.now(),amount,date,category:cat,desc});
-    }
+    txs.push({id:Date.now(),amount,date,category:cat,desc});
     saveTxs(txs);
     document.getElementById('inp-amount').value='';
     document.getElementById('inp-desc').value='';
-    document.getElementById('btn-add-expense').textContent = t('addExpense');
     renderMonth();
   }
 
   function startEditTx(id) {
     const tx = getTxs(currentYear,currentMonth).find(t => t.id === id);
     if (!tx) return;
-    editingTxId = id;
-    document.getElementById('inp-amount').value = formatGroupedNumberInput(String(tx.amount));
-    document.getElementById('inp-desc').value = tx.desc || '';
-    document.getElementById('inp-category').value = tx.category;
-    const [y,m,d] = tx.date.split('-').map(Number);
-    selectedDate = new Date(y, m - 1, d);
-    dpYear = y; dpMonth = m - 1;
-    document.getElementById('date-display-text').textContent = `${String(d).padStart(2,'0')}.${String(m).padStart(2,'0')}.${y}`;
-    document.getElementById('btn-add-expense').textContent = t('saveChanges');
-    document.getElementById('inp-amount').focus();
+    editingModalTxId = id;
+    document.getElementById('edit-amount').value = formatGroupedNumberInput(String(tx.amount));
+    document.getElementById('edit-desc').value = tx.desc || '';
+    document.getElementById('edit-category').value = tx.category;
+    document.getElementById('edit-date').value = tx.date;
+    document.getElementById('edit-modal-backdrop').classList.add('open');
   }
 
   function deleteTx(id) {
-    if (editingTxId === id) {
-      editingTxId = null;
-      document.getElementById('btn-add-expense').textContent = t('addExpense');
-    }
+    if (editingModalTxId === id) editingModalTxId = null;
     saveTxs(getTxs(currentYear,currentMonth).filter(t=>t.id!==id));
+    renderMonth();
+  }
+
+  function closeEditModal() {
+    editingModalTxId = null;
+    document.getElementById('edit-modal-backdrop').classList.remove('open');
+  }
+
+  function saveEditTx() {
+    if (!editingModalTxId) return;
+    const amount = parseGroupedNumber(document.getElementById('edit-amount').value);
+    const date = document.getElementById('edit-date').value;
+    const category = document.getElementById('edit-category').value;
+    const desc = document.getElementById('edit-desc').value.trim();
+    if (!amount || amount <= 0 || !date) { alert(t('fillAmountDate')); return; }
+    const txs = getTxs(currentYear,currentMonth);
+    const idx = txs.findIndex(t => t.id === editingModalTxId);
+    if (idx >= 0) txs[idx] = { ...txs[idx], amount, date, category, desc };
+    saveTxs(txs);
+    closeEditModal();
     renderMonth();
   }
 
@@ -1152,6 +1198,9 @@
   document.getElementById('inp-budget').addEventListener('input', (e) => {
     e.target.value = formatGroupedNumberInput(e.target.value);
   });
+  document.getElementById('edit-amount').addEventListener('input', (e) => {
+    e.target.value = formatGroupedNumberInput(e.target.value);
+  });
   ['inp-amount','inp-desc','inp-category','date-display'].forEach((id) => {
     document.getElementById(id).addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); addTransaction(); }
@@ -1159,6 +1208,11 @@
   });
   document.getElementById('inp-budget').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); setBudget(); }
+  });
+  ['edit-amount','edit-date','edit-category','edit-desc'].forEach((id) => {
+    document.getElementById(id).addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); saveEditTx(); }
+    });
   });
   syncSelectedDateToCurrentMonth();
   applyI18n();
