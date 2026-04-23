@@ -19,8 +19,13 @@
       padding: 20px 32px; display: flex; align-items: center; justify-content: space-between;
       border-bottom: 1px solid var(--border);
     }
-    .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; letter-spacing: -0.04em; }
+    .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; letter-spacing: -0.04em; display:flex; align-items:center; gap:10px; }
     .logo span { color: var(--accent); }
+    .version-badge {
+      font-family:'DM Mono',monospace; font-size:0.62rem; color:var(--muted);
+      border:1px solid var(--border); border-radius:99px; padding:3px 8px;
+      letter-spacing:0.04em;
+    }
 
     .tab-nav { display: flex; gap: 4px; }
     .tab-btn {
@@ -213,6 +218,9 @@
 
     .cat-bars { display:flex; flex-direction:column; gap:11px; }
     .cat-bar-row { display:flex; flex-direction:column; gap:5px; }
+    .cat-bar-row.toggleable { cursor:pointer; border-radius:8px; padding:6px 8px; transition:background 0.12s; }
+    .cat-bar-row.toggleable:hover { background:var(--surface2); }
+    .cat-bar-row.excluded { opacity:0.35; }
     .cat-bar-header { display:flex; justify-content:space-between; align-items:baseline; }
     .cat-bar-name { font-size:0.78rem; }
     .cat-bar-val  { font-family:'Syne',sans-serif; font-weight:700; font-size:0.82rem; }
@@ -244,7 +252,7 @@
 <body>
 
 <header>
-  <div class="logo">Spend<span>Trend</span></div>
+  <div class="logo">Spend<span>Trend</span><span class="version-badge">v0.3.1</span></div>
   <div class="tab-nav">
     <button class="tab-btn active" onclick="switchTab('month')">Kuukausi</button>
     <button class="tab-btn" onclick="switchTab('year')">Vuosi</button>
@@ -366,7 +374,7 @@
       </div>
 
       <div class="card">
-        <div class="card-title">Menot kategorioittain — suurimmasta pienimpään</div>
+        <div class="card-title">Menot kategorioittain — suurimmasta pienimpään (klikkaa piilottaaksesi/näyttääksesi)</div>
         <div class="cat-bars" id="year-cat-bars"></div>
       </div>
 
@@ -703,11 +711,10 @@
     document.getElementById('cat-filter-list').innerHTML = sortedAll.length===0
       ? '<div class="empty-state" style="padding:12px 0">Ei dataa</div>'
       : sortedAll.map(([cat,total])=>`
-        <div class="cat-filter-item ${excludedCats.has(cat)?'excluded':''}" onclick="toggleCat('${cat}')">
+        <div class="cat-filter-item ${excludedCats.has(cat)?'excluded':''}">
           <div class="cat-dot-sm" style="background:${catColor(cat)}"></div>
           <span class="cat-filter-label">${cat}</span>
           <span class="cat-filter-amt">${fmt(total)}</span>
-          <span class="cat-check">${excludedCats.has(cat)?'○':'●'}</span>
         </div>`).join('');
     document.getElementById('year-total-shown').textContent = fmt(totalShown);
 
@@ -716,10 +723,10 @@
     document.getElementById('year-cat-bars').innerHTML = sorted.length===0
       ? '<div class="empty-state">Ei menokirjauksia.</div>'
       : sorted.map(([cat,total])=>`
-        <div class="cat-bar-row">
+        <div class="cat-bar-row toggleable ${excludedCats.has(cat)?'excluded':''}" onclick="toggleCat('${cat}')">
           <div class="cat-bar-header">
             <span class="cat-bar-name">${cat}</span>
-            <span class="cat-bar-val">${fmt(total)}</span>
+            <span class="cat-bar-val">${fmt(total)} ${excludedCats.has(cat)?'○':'●'}</span>
           </div>
           <div class="cat-bar-track">
             <div class="cat-bar-fill" style="width:${(total/maxCat*100).toFixed(1)}%;background:${catColor(cat)}"></div>
