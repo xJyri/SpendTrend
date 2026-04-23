@@ -20,14 +20,13 @@ SpendTrend on kevyt selainpohjainen kuluseuranta-appi (HTML + CSS + JavaScript),
 
 ## Käynnistysohjeet
 
-### Vaihtoehto 1: avaa suoraan selaimeen
+### Vaihtoehto 1: 
 
-1. Siirry projektikansioon.
-2. Avaa `index.html` selaimessa (tuplaklikkaus tai Open with Browser).
+1. Siirry osoitteeseen https://xjyri.github.io/SpendTrend/
 
 ### Vaihtoehto 2: 
 
-1. Siirry osoitteeseen https://xjyri.github.io/SpendTrend/
+1. Lataa repo koneelle ja avaa index.html selaimessa
 
 ---
 
