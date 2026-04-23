@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SpendTrend</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+
+</head>
+<body>
+
+<header>
+  <div class="logo"><span class="logo-main"><span class="logo-spend">Spend</span><span class="logo-trend">Trend</span></span><span class="version-badge">v0.4.9</span>
+    <div class="lang-toggle">
+      <button id="lang-switch" class="lang-btn active" onclick="toggleLanguage()">FI</button>
+    </div>
+  </div>
+  <div id="header-right">
+    <div class="header-nav-slot">
+      <div class="month-nav" id="header-month-nav">
+      <button class="nav-btn" onclick="prevMonth()">&#8592;</button>
+      <div id="month-label" class="month-label-pick" onclick="openMonthPicker(event)"></div>
+      <button class="nav-btn" onclick="nextMonth()">&#8594;</button>
+      </div>
+      <div class="year-nav-wrap nav-hidden" id="header-year-nav">
+        <button class="nav-btn" onclick="yearNav(-1)">&#8592;</button>
+        <div id="year-label" class="month-label-pick" onclick="openMonthPicker(event)"></div>
+        <button class="nav-btn" onclick="yearNav(1)">&#8594;</button>
+      </div>
+      <div class="date-popup header-month-popup" id="header-month-popup" onclick="event.stopPropagation()">
+        <div class="jump-grid">
+          <select id="jump-month-select" class="jump-select"></select>
+          <select id="jump-year-select" class="jump-select"></select>
+        </div>
+        <button class="btn-small" style="width:100%" onclick="jumpToMonthYear()">OK</button>
+      </div>
+    </div>
+    <div class="tab-nav">
+      <button id="tab-month" class="tab-btn active" onclick="switchTab('month')">Kuukausi</button>
+      <button id="tab-year" class="tab-btn" onclick="switchTab('year')">Vuosi</button>
+    </div>
+  </div>
+</header>
+
+<div id="view-month" class="view active">
+  <div class="month-main">
+
+    <div id="warning-banner"><span>⚠</span><span id="warning-text"></span></div>
+
+    <div class="summary-row">
+      <div class="stat-card expenses">
+        <div class="stat-label" id="lbl-month-expenses">Menot tässä kuussa</div>
+        <div class="stat-value" id="stat-expenses">0,00 €</div>
+      </div>
+      <div class="stat-card budget">
+        <div class="stat-label" id="lbl-budget-left">Budjetti jäljellä</div>
+        <div class="stat-value" id="stat-budget">–</div>
+        <div class="budget-bar-wrap" id="budget-bar-wrap" style="display:none">
+          <div class="budget-bar-track"><div class="budget-bar-fill" id="budget-bar-fill"></div></div>
+          <div class="budget-bar-label" id="budget-bar-label"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" id="ttl-add-expense">Lisää meno</div>
+      <div class="form-grid">
+        <div>
+          <label id="lbl-amount">Summa (€)</label>
+          <input type="text" inputmode="decimal" id="inp-amount" placeholder="0.00" />
+        </div>
+        <div>
+          <label id="lbl-date">Päivämäärä</label>
+          <div class="date-input-wrap">
+            <div class="date-display" id="date-display" tabindex="0" onclick="toggleDatePicker(event)">
+              <span id="date-display-text">Valitse päivä</span>
+              <span class="arrow">▼</span>
+            </div>
+            <div class="date-popup" id="date-popup">
+              <div class="dp-header">
+                <button class="dp-nav" onclick="dpNav(event,-1)">‹</button>
+                <span class="dp-month-label" id="dp-month-label"></span>
+                <button class="dp-nav" onclick="dpNav(event,1)">›</button>
+              </div>
+              <div class="dp-weekdays">
+                <div class="dp-weekday" id="wd-0">Ma</div><div class="dp-weekday" id="wd-1">Ti</div>
+                <div class="dp-weekday" id="wd-2">Ke</div><div class="dp-weekday" id="wd-3">To</div>
+                <div class="dp-weekday" id="wd-4">Pe</div><div class="dp-weekday" id="wd-5">La</div>
+                <div class="dp-weekday" id="wd-6">Su</div>
+              </div>
+              <div class="dp-days" id="dp-days"></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <label id="lbl-category">Kategoria</label>
+          <select id="inp-category"></select>
+        </div>
+        <div>
+          <label id="lbl-desc">Kuvaus</label>
+          <input type="text" id="inp-desc" placeholder="Valinnainen..." />
+        </div>
+        <div class="form-full">
+          <button class="btn-primary" id="btn-add-expense" onclick="addTransaction()">Lisää meno</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" id="ttl-budget-limit">Budjettiraja</div>
+      <div class="budget-setter">
+        <div><label id="lbl-month-budget">Kuukausibudjetti (€)</label><input type="text" inputmode="decimal" id="inp-budget" placeholder="esim. 600" /></div>
+        <button class="btn-small" id="btn-set-budget" onclick="setBudget()">Aseta</button>
+      </div>
+      <div style="margin-top:24px">
+        <div class="card-title" id="ttl-cat-month">Menot kategorioittain</div>
+        <div class="chart-wrap"><canvas id="chart-cat"></canvas></div>
+        <div id="month-cat-filter-list" class="month-filter-list"></div>
+      </div>
+    </div>
+
+    <div class="card span-full">
+      <div class="card-title-row">
+        <div class="card-title" id="ttl-entries" style="margin:0">Kirjaukset</div>
+        <button class="btn-small" id="btn-reset-current-month" onclick="resetCurrentMonth()">Nollaa kuukausi</button>
+      </div>
+      <div class="tx-list" id="tx-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="edit-modal-backdrop" id="edit-modal-backdrop" onclick="closeEditModal()">
+  <div class="edit-modal" onclick="event.stopPropagation()">
+    <div class="card-title" id="ttl-edit-expense">Muokkaa kirjausta</div>
+    <div class="form-grid">
+      <div><label id="lbl-edit-amount">Summa (€)</label><input type="text" inputmode="decimal" id="edit-amount" /></div>
+      <div><label id="lbl-edit-date">Päivämäärä</label><input type="date" id="edit-date" /></div>
+      <div><label id="lbl-edit-category">Kategoria</label><select id="edit-category"></select></div>
+      <div><label id="lbl-edit-desc">Kuvaus</label><input type="text" id="edit-desc" /></div>
+    </div>
+    <div class="edit-modal-actions">
+      <button class="btn-small" id="btn-edit-cancel" onclick="closeEditModal()">Peruuta</button>
+      <button class="btn-primary" id="btn-edit-save" style="margin-top:0" onclick="saveEditTx()">Tallenna</button>
+    </div>
+  </div>
+</div>
+
+<div id="view-year" class="view">
+  <div class="year-main">
+    <div class="year-content">
+      <div class="year-header-bar">
+        <div class="card-title" id="ttl-year-overview" style="margin:0">Vuosikatsaus</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" id="ttl-year-budget">Vuosibudjetti ja toteuma</div>
+        <div class="year-budget-grid">
+          <div class="year-budget-box">
+            <div class="year-budget-label" id="lbl-year-budget-total">Budjetoitu yhteensä</div>
+            <div class="year-budget-value" id="year-budget-total">0,00 €</div>
+          </div>
+          <div class="year-budget-box">
+            <div class="year-budget-label" id="lbl-year-expense-total">Kulutettu yhteensä</div>
+            <div class="year-budget-value" id="year-expense-total">0,00 €</div>
+          </div>
+          <div class="year-budget-box">
+            <div class="year-budget-label" id="lbl-year-diff">Erotus</div>
+            <div class="year-budget-value" id="year-budget-diff">0,00 €</div>
+          </div>
+        </div>
+        <div class="year-budget-note" id="year-budget-note"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" id="ttl-year-cats">Menot kategorioittain — suurimmasta pienimpään (klikkaa piilottaaksesi/näyttääksesi)</div>
+        <div class="cat-bars" id="year-cat-bars"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" id="ttl-year-cat-chart">Menot kategorioittain (vuosi)</div>
+        <div class="year-cat-chart-wrap"><canvas id="year-cat-chart"></canvas></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" id="ttl-year-monthly">Menot kuukausittain (väripinottu kategorioittain)</div>
+        <div class="year-chart-wrap"><canvas id="year-chart"></canvas></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" id="ttl-month-grid">Kuukaudet — klikkaa siirtyäksesi</div>
+        <div class="month-grid" id="month-grid"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="app.js"></script>
+
+</body>
+</html>
