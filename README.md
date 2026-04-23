@@ -26,7 +26,8 @@ SpendTrend on kevyt selainpohjainen kuluseuranta-appi (HTML + CSS + JavaScript),
 
 ### Vaihtoehto 2: 
 
-1. Lataa repo koneelle ja avaa index.html selaimessa
+1. Lataa repo koneelle.
+2. Pura kansio, ja pidä tiedostot samassa kansiossa. Avaa index.html selaimessa.
 
 ---
 
