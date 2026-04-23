@@ -46,10 +46,7 @@
     .lang-btn.active { color:var(--accent); border-color:var(--accent); }
 
     .month-nav { display: flex; align-items: center; gap: 10px; }
-    .month-jump {
-      background:var(--surface2); border:1px solid var(--border); color:var(--muted);
-      border-radius:7px; padding:3px 6px; font-size:0.72rem;
-    }
+    .hidden-month-picker { position:absolute; opacity:0; width:1px; height:1px; pointer-events:none; }
     #header-right { display:flex; align-items:center; gap:10px; }
     .header-nav-slot { position:relative; width:210px; height:30px; }
     #header-month-nav, #header-year-nav {
@@ -62,7 +59,7 @@
       display: flex; align-items: center; justify-content: center; transition: background 0.15s;
     }
     .nav-btn:hover { background: var(--border); }
-    #month-label { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.95rem; min-width: 130px; text-align: center; }
+    #month-label { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.95rem; min-width: 130px; text-align: center; cursor:pointer; }
 
     .view { display: none; }
     .view.active { display: block; }
@@ -267,7 +264,7 @@
     .month-mini-fill { height:100%; border-radius:99px; background:var(--accent); transition:width 0.4s ease; }
 
     .year-nav-wrap { display:flex; align-items:center; gap:8px; }
-    #year-label { font-family:'Syne',sans-serif; font-weight:700; font-size:1rem; min-width:44px; text-align:center; }
+    #year-label { font-family:'Syne',sans-serif; font-weight:700; font-size:1rem; min-width:44px; text-align:center; cursor:pointer; }
 
     @media(max-width:980px) {
       header { flex-wrap:wrap; gap:10px; padding:16px 18px; }
@@ -292,23 +289,24 @@
 <body>
 
 <header>
-  <div class="logo"><span class="logo-main"><span class="logo-spend">Spend</span><span class="logo-trend">Trend</span></span><span class="version-badge">v0.4.2</span></div>
-  <div class="lang-toggle">
-    <button id="lang-switch" class="lang-btn active" onclick="toggleLanguage()">FI</button>
+  <div class="logo"><span class="logo-main"><span class="logo-spend">Spend</span><span class="logo-trend">Trend</span></span><span class="version-badge">v0.4.3</span>
+    <div class="lang-toggle">
+      <button id="lang-switch" class="lang-btn active" onclick="toggleLanguage()">FI</button>
+    </div>
   </div>
   <div id="header-right">
     <div class="header-nav-slot">
       <div class="month-nav" id="header-month-nav">
       <button class="nav-btn" onclick="prevMonth()">&#8592;</button>
-      <span id="month-label"></span>
+      <span id="month-label" onclick="openMonthPicker()"></span>
       <button class="nav-btn" onclick="nextMonth()">&#8594;</button>
-      <input class="month-jump" type="month" id="header-month-picker" onchange="jumpToMonthYear()" />
       </div>
       <div class="year-nav-wrap nav-hidden" id="header-year-nav">
         <button class="nav-btn" onclick="yearNav(-1)">&#8592;</button>
-        <span id="year-label"></span>
+        <span id="year-label" onclick="openMonthPicker()"></span>
         <button class="nav-btn" onclick="yearNav(1)">&#8594;</button>
       </div>
+      <input class="hidden-month-picker" type="month" id="header-month-picker" onchange="jumpToMonthYear()" />
     </div>
     <div class="tab-nav">
       <button id="tab-month" class="tab-btn active" onclick="switchTab('month')">Kuukausi</button>
@@ -683,6 +681,12 @@
     if (currentTab === 'month') renderMonth(); else renderYear();
   }
 
+  function openMonthPicker() {
+    const picker = document.getElementById('header-month-picker');
+    if (picker.showPicker) picker.showPicker();
+    else picker.click();
+  }
+
   function toggleDatePicker(e) {
     e.stopPropagation();
     const popup = document.getElementById('date-popup');
@@ -852,15 +856,19 @@
                   const base = Chart.defaults.plugins.legend.labels.generateLabels(chart);
                   const values = chart.data.datasets[0].data;
                   const sum = values.reduce((s,v)=>s+v,0) || 1;
-                  return base.map((l, idx) => ({ ...l, text: `${l.text} (${Math.round(values[idx] / sum * 100)}%)` }));
+                  return base.map((l) => {
+                    const v = values[l.index] ?? 0;
+                    return { ...l, text: `${l.text} (${Math.round(v / sum * 100)}%)` };
+                  });
                 }
               }
             },
             tooltip:{callbacks:{label:c=>{
               const vals = c.dataset.data;
               const sum = vals.reduce((s,v)=>s+v,0) || 1;
-              const pct = Math.round((c.raw / sum) * 100);
-              return ` ${c.label}: ${c.raw.toLocaleString('fi-FI',{minimumFractionDigits:2})} € (${pct}%)`;
+              const raw = Number(c.raw) || 0;
+              const pct = Math.round((raw / sum) * 100);
+              return ` ${c.label}: ${raw.toLocaleString('fi-FI',{minimumFractionDigits:2})} € (${pct}%)`;
             }}}
           }
         }
