@@ -19,7 +19,8 @@
       padding: 20px 32px; display: flex; align-items: center; justify-content: space-between;
       border-bottom: 1px solid var(--border);
     }
-    .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; letter-spacing: -0.04em; display:flex; align-items:center; gap:10px; color:var(--accent); }
+    .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; letter-spacing: -0.04em; display:flex; align-items:center; gap:10px; color:var(--text); }
+    .logo span { color: var(--accent); }
     .version-badge {
       font-family:'DM Mono',monospace; font-size:0.62rem; color:var(--muted);
       border:1px solid var(--border); border-radius:99px; padding:3px 8px;
@@ -101,12 +102,6 @@
     select option { background:var(--surface2); }
 
     .date-input-wrap { position:relative; }
-    .native-date {
-      width:100%; background:var(--surface2); border:1px solid var(--border);
-      color:var(--text); font-family:'DM Mono',monospace; font-size:0.82rem;
-      padding:10px 12px; border-radius:9px; margin-bottom:8px;
-    }
-    .native-date::-webkit-calendar-picker-indicator { filter: invert(0.8); cursor: pointer; }
     .date-display {
       width:100%; background:var(--surface2); border:1px solid var(--border);
       color:var(--text); font-family:'DM Mono',monospace; font-size:0.85rem;
@@ -255,14 +250,29 @@
     .year-nav-wrap { display:flex; align-items:center; gap:8px; }
     #year-label { font-family:'Syne',sans-serif; font-weight:700; font-size:1rem; min-width:44px; text-align:center; }
 
+    @media(max-width:980px) {
+      header { flex-wrap:wrap; gap:10px; padding:16px 18px; }
+      #header-right { width:100%; display:flex; justify-content:flex-end; }
+      .month-main { grid-template-columns:1fr; padding:20px 14px; }
+      .year-main { padding:20px 14px; }
+      .card { padding:16px; }
+      .year-budget-grid { grid-template-columns:1fr; }
+    }
     @media(max-width:800px) { .year-main{grid-template-columns:1fr} .month-grid{grid-template-columns:repeat(3,1fr)} }
-    @media(max-width:600px) { .month-main{grid-template-columns:1fr} .summary-row{grid-template-columns:1fr 1fr} }
+    @media(max-width:600px) {
+      .month-main{grid-template-columns:1fr}
+      .summary-row{grid-template-columns:1fr}
+      .month-grid{grid-template-columns:repeat(2,1fr)}
+      .tab-nav { width:100%; justify-content:flex-start; }
+      #header-right { justify-content:flex-start; }
+      #month-label { min-width:unset; }
+    }
   </style>
 </head>
 <body>
 
 <header>
-  <div class="logo">SpendTrend<span class="version-badge">v0.3.2</span></div>
+  <div class="logo">Spend<span>Trend</span><span class="version-badge">v0.3.3</span></div>
   <div class="tab-nav">
     <button class="tab-btn active" onclick="switchTab('month')">Kuukausi</button>
     <button class="tab-btn" onclick="switchTab('year')">Vuosi</button>
@@ -310,7 +320,6 @@
               <span id="date-display-text">Valitse päivä</span>
               <span class="arrow">▼</span>
             </div>
-            <input class="native-date" type="date" id="inp-date-native" />
             <div class="date-popup" id="date-popup">
               <div class="dp-header">
                 <button class="dp-nav" onclick="dpNav(event,-1)">‹</button>
@@ -469,7 +478,6 @@
     const dd = selectedDate.getDate().toString().padStart(2,'0');
     const mm = (selectedDate.getMonth()+1).toString().padStart(2,'0');
     document.getElementById('date-display-text').textContent = `${dd}.${mm}.${selectedDate.getFullYear()}`;
-    document.getElementById('inp-date-native').value = `${selectedDate.getFullYear()}-${mm}-${dd}`;
   }
 
   function switchTab(tab) {
@@ -549,31 +557,16 @@
     const dd = selectedDate.getDate().toString().padStart(2,'0');
     const mm = (selectedDate.getMonth()+1).toString().padStart(2,'0');
     document.getElementById('date-display-text').textContent = `${dd}.${mm}.${selectedDate.getFullYear()}`;
-    document.getElementById('inp-date-native').value = `${selectedDate.getFullYear()}-${mm}-${dd}`;
     document.getElementById('date-popup').classList.remove('open');
     document.getElementById('date-display').classList.remove('open');
     renderDP();
   }
 
   function getDateStr() {
-    const nativeDate = document.getElementById('inp-date-native').value;
-    if (nativeDate) return nativeDate;
     if (!selectedDate) return null;
     const d = selectedDate.getDate().toString().padStart(2,'0');
     const m = (selectedDate.getMonth()+1).toString().padStart(2,'0');
     return `${selectedDate.getFullYear()}-${m}-${d}`;
-  }
-
-  function handleNativeDateInput() {
-    const value = document.getElementById('inp-date-native').value;
-    if (!value) return;
-    const [year, month, day] = value.split('-').map(Number);
-    selectedDate = new Date(year, month - 1, day);
-    dpYear = selectedDate.getFullYear();
-    dpMonth = selectedDate.getMonth();
-    const dd = String(day).padStart(2,'0');
-    const mm = String(month).padStart(2,'0');
-    document.getElementById('date-display-text').textContent = `${dd}.${mm}.${year}`;
   }
 
   function addTransaction() {
@@ -844,7 +837,6 @@
   }
 
   document.getElementById('inp-category').innerHTML = EXPENSE_CATS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
-  document.getElementById('inp-date-native').addEventListener('input', handleNativeDateInput);
   syncSelectedDateToCurrentMonth();
   updateMonthLabel();
   renderMonth();
