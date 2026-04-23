@@ -20,7 +20,9 @@
       border-bottom: 1px solid var(--border);
     }
     .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; letter-spacing: -0.04em; display:flex; align-items:center; gap:10px; color:var(--text); }
-    .logo span { color: var(--accent); }
+    .logo-main { display:inline-flex; gap:0; }
+    .logo-spend { color:var(--text); }
+    .logo-trend { color:var(--accent); }
     .version-badge {
       font-family:'DM Mono',monospace; font-size:0.62rem; color:var(--muted);
       border:1px solid var(--border); border-radius:99px; padding:3px 8px;
@@ -280,20 +282,24 @@
 <body>
 
 <header>
-  <div class="logo">Spend<span>Trend</span><span class="version-badge">v0.4.0</span></div>
+  <div class="logo"><span class="logo-main"><span class="logo-spend">Spend</span><span class="logo-trend">Trend</span></span><span class="version-badge">v0.4.1</span></div>
   <div class="tab-nav">
     <button id="tab-month" class="tab-btn active" onclick="switchTab('month')">Kuukausi</button>
     <button id="tab-year" class="tab-btn" onclick="switchTab('year')">Vuosi</button>
   </div>
   <div class="lang-toggle">
-    <button id="lang-fi" class="lang-btn" onclick="setLanguage('fi')">🇫🇮 FI</button>
-    <button id="lang-en" class="lang-btn" onclick="setLanguage('en')">🇬🇧 EN</button>
+    <button id="lang-switch" class="lang-btn active" onclick="toggleLanguage()">🇫🇮 FI</button>
   </div>
   <div id="header-right">
-    <div class="month-nav">
+    <div class="month-nav" id="header-month-nav">
       <button class="nav-btn" onclick="prevMonth()">&#8592;</button>
       <span id="month-label"></span>
       <button class="nav-btn" onclick="nextMonth()">&#8594;</button>
+    </div>
+    <div class="year-nav-wrap" id="header-year-nav" style="display:none">
+      <button class="nav-btn" onclick="yearNav(-1)">&#8592;</button>
+      <span id="year-label"></span>
+      <button class="nav-btn" onclick="yearNav(1)">&#8594;</button>
     </div>
   </div>
 </header>
@@ -388,11 +394,6 @@
     <div class="year-content">
       <div class="year-header-bar">
         <div class="card-title" id="ttl-year-overview" style="margin:0">Vuosikatsaus</div>
-        <div class="year-nav-wrap">
-          <button class="nav-btn" onclick="yearNav(-1)">&#8592;</button>
-          <span id="year-label"></span>
-          <button class="nav-btn" onclick="yearNav(1)">&#8594;</button>
-        </div>
       </div>
 
       <div class="card">
@@ -550,8 +551,8 @@
       const el = document.getElementById(id);
       if (el) el.innerHTML = t(key);
     });
-    document.getElementById('lang-fi').classList.toggle('active', currentLang === 'fi');
-    document.getElementById('lang-en').classList.toggle('active', currentLang === 'en');
+    const langBtn = document.getElementById('lang-switch');
+    langBtn.textContent = currentLang === 'fi' ? '🇫🇮 FI' : '🇬🇧 EN';
     updateMonthLabel();
     if (currentTab === 'month') renderMonth(); else renderYear();
   }
@@ -560,6 +561,10 @@
     currentLang = lang;
     localStorage.setItem('st_lang', lang);
     applyI18n();
+  }
+
+  function toggleLanguage() {
+    setLanguage(currentLang === 'fi' ? 'en' : 'fi');
   }
 
   function syncSelectedDateToCurrentMonth() {
@@ -578,7 +583,8 @@
     document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (i===0&&tab==='month')||(i===1&&tab==='year')));
     document.getElementById('view-month').classList.toggle('active', tab==='month');
     document.getElementById('view-year').classList.toggle('active',  tab==='year');
-    document.getElementById('header-right').style.display = tab==='month' ? '' : 'none';
+    document.getElementById('header-month-nav').style.display = tab==='month' ? 'flex' : 'none';
+    document.getElementById('header-year-nav').style.display = tab==='year' ? 'flex' : 'none';
     if (tab==='month') renderMonth(); else renderYear();
   }
 
