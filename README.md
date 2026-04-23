@@ -8,8 +8,6 @@ SpendTrend on kevyt selainpohjainen kuluseuranta-appi (HTML + CSS + JavaScript),
 - tarkastella kaavioita kategorioittain ja kuukausittain
 - käyttää sovellusta suomeksi tai englanniksi
 
-Sovellus tallentaa datan selaimen `localStorage`-muistiin (ei erillistä backendiä).
-
 ---
 
 ## Tuotteen tila
@@ -27,19 +25,9 @@ Sovellus tallentaa datan selaimen `localStorage`-muistiin (ei erillistä backend
 1. Siirry projektikansioon.
 2. Avaa `index.html` selaimessa (tuplaklikkaus tai Open with Browser).
 
-### Vaihtoehto 2: aja paikallinen HTTP-palvelin (suositus)
+### Vaihtoehto 2: 
 
-Projektikansiossa:
-
-```bash
-python -m http.server 8000
-```
-
-Avaa selaimessa:
-
-```text
-http://localhost:8000
-```
+1. Siirry osoitteeseen https://xjyri.github.io/SpendTrend/
 
 ---
 
