@@ -261,7 +261,7 @@
     .month-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
     .month-mini {
       background:var(--surface2); border:1px solid var(--border); border-radius:10px;
-      padding:12px; cursor:pointer; transition:border-color 0.15s;
+      padding:12px; cursor:pointer; transition:border-color 0.15s; position:relative;
     }
     .month-mini:hover { border-color:var(--accent); }
     .month-mini.empty .month-mini-val { color:var(--border); }
@@ -273,7 +273,12 @@
     .year-nav-wrap { display:flex; align-items:center; gap:8px; }
     #year-label { font-family:'Syne',sans-serif; font-weight:700; font-size:1rem; min-width:44px; text-align:center; cursor:pointer; }
     .month-mini-budget { margin-top:5px; font-size:0.64rem; color:var(--muted); }
-    .month-reset { margin-top:6px; font-size:0.62rem; color:var(--muted); cursor:pointer; text-decoration:underline; }
+    .month-reset {
+      position:absolute; top:6px; right:8px; width:18px; height:18px; border-radius:50%;
+      border:1px solid var(--border); color:var(--muted); display:flex; align-items:center; justify-content:center;
+      font-size:0.65rem; cursor:pointer; background:var(--surface); line-height:1;
+    }
+    .month-reset:hover { color:var(--red); border-color:var(--red); }
 
     @media(max-width:980px) {
       header { flex-wrap:wrap; gap:10px; padding:16px 18px; }
@@ -298,7 +303,7 @@
 <body>
 
 <header>
-  <div class="logo"><span class="logo-main"><span class="logo-spend">Spend</span><span class="logo-trend">Trend</span></span><span class="version-badge">v0.4.4</span>
+  <div class="logo"><span class="logo-main"><span class="logo-spend">Spend</span><span class="logo-trend">Trend</span></span><span class="version-badge">v0.4.5</span>
     <div class="lang-toggle">
       <button id="lang-switch" class="lang-btn active" onclick="toggleLanguage()">FI</button>
     </div>
@@ -315,7 +320,7 @@
         <div id="year-label" class="month-label-pick" onclick="openMonthPicker(event)"></div>
         <button class="nav-btn" onclick="yearNav(1)">&#8594;</button>
       </div>
-      <div class="date-popup header-month-popup" id="header-month-popup">
+      <div class="date-popup header-month-popup" id="header-month-popup" onclick="event.stopPropagation()">
         <div class="jump-grid">
           <select id="jump-month-select" class="jump-select"></select>
           <select id="jump-year-select" class="jump-select"></select>
@@ -399,6 +404,9 @@
       <div class="budget-setter">
         <div><label id="lbl-month-budget">Kuukausibudjetti (€)</label><input type="text" inputmode="decimal" id="inp-budget" placeholder="esim. 600" /></div>
         <button class="btn-small" id="btn-set-budget" onclick="setBudget()">Aseta</button>
+      </div>
+      <div style="margin-top:10px">
+        <button class="btn-small" id="btn-reset-current-month" onclick="resetCurrentMonth()">Nollaa kuukausi</button>
       </div>
       <div style="margin-top:24px">
         <div class="card-title" id="ttl-cat-month">Menot kategorioittain</div>
@@ -499,6 +507,7 @@
       yearCatChart: 'Menot kategorioittain (vuosi)', yearMonthly: 'Menot kuukausittain (väripinottu kategorioittain)',
       monthGrid: 'Kuukaudet — klikkaa siirtyäksesi',
       resetMonth: 'Nollaa kuukausi',
+      confirmResetMonth: 'Nollataanko kuukausi? Tämä poistaa menot ja budjetin.',
       fillAmountDate: 'Täytä summa ja päivämäärä.',
       wrongMonthDate: 'Valittu päivämäärä ei kuulu näkyvään kuukauteen. Vaihda päivä samalle kuukaudelle.',
       giveBudget: 'Anna budjettiraja.',
@@ -534,6 +543,7 @@
       yearCatChart: 'Expenses by category (year)', yearMonthly: 'Expenses by month (stacked by category)',
       monthGrid: 'Months — click to open',
       resetMonth: 'Reset month',
+      confirmResetMonth: 'Reset this month? This clears expenses and budget.',
       fillAmountDate: 'Please fill amount and date.',
       wrongMonthDate: 'Selected date is outside current month. Pick a date from the current month.',
       giveBudget: 'Enter a budget.',
@@ -631,6 +641,8 @@
     }
     const langBtn = document.getElementById('lang-switch');
     langBtn.textContent = currentLang === 'fi' ? 'FI' : 'EN';
+    const resetBtn = document.getElementById('btn-reset-current-month');
+    if (resetBtn) resetBtn.textContent = t('resetMonth');
     updateMonthLabel();
     if (currentTab === 'month') renderMonth(); else renderYear();
   }
@@ -970,9 +982,17 @@
 
   function resetMonthData(m, e) {
     if (e) e.stopPropagation();
+    if (!confirm(t('confirmResetMonth'))) return;
     localStorage.removeItem(txKey(viewYear, m));
     localStorage.removeItem(budKey(viewYear, m));
     renderYear();
+  }
+
+  function resetCurrentMonth() {
+    if (!confirm(t('confirmResetMonth'))) return;
+    localStorage.removeItem(txKey(currentYear, currentMonth));
+    localStorage.removeItem(budKey(currentYear, currentMonth));
+    renderMonth();
   }
 
   function renderYear() {
@@ -1079,7 +1099,7 @@
         <div class="month-mini-name">${name}</div>
         <div class="month-mini-val">${v===0?'–':fmt(v)}</div>
         <div class="month-mini-budget">${t('monthBudgetShort')}: ${b>0?fmt(b):'–'}</div>
-        <div class="month-reset" onclick="resetMonthData(${i}, event)">${t('resetMonth')}</div>
+        <div class="month-reset" onclick="resetMonthData(${i}, event)" title="${t('resetMonth')}">×</div>
         <div class="month-mini-bar"><div class="month-mini-fill" style="width:${v===0?0:pct}%"></div></div>
       </div>`;
     }).join('');
